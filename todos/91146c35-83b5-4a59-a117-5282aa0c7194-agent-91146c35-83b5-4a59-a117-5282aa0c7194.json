@@ -1,0 +1,22 @@
+[
+  {
+    "content": "Read current dashboard.html and server.js to understand existing state",
+    "status": "completed",
+    "activeForm": "Reading current codebase state"
+  },
+  {
+    "content": "Phase 1: Add extensionless routes + wrap campaigns.html with sidebar/topbar",
+    "status": "completed",
+    "activeForm": "Wrapping campaigns.html with sidebar layout"
+  },
+  {
+    "content": "Phase 2: Wrap analytics.html + integrations.html with sidebar/topbar",
+    "status": "in_progress",
+    "activeForm": "Wrapping analytics and integrations pages"
+  },
+  {
+    "content": "Phase 3: Deploy and verify all pages have consistent navigation",
+    "status": "pending",
+    "activeForm": "Deploying and verifying"
+  }
+]

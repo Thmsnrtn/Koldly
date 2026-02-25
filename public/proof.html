@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="See what Koldly created for your company. This email was generated autonomously by AI.">
+    <meta name="theme-color" content="#FF6B35">
+    <title>Your Koldly Demo — Autonomous Outreach</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0A0A0A;
+            --bg-card: #141414;
+            --bg-card-hover: #1A1A1A;
+            --accent: #FF6B35;
+            --accent-glow: rgba(255, 107, 53, 0.15);
+            --text: #F5F5F5;
+            --text-muted: #888;
+            --border: #222;
+            --success: #10B981;
+            --error: #EF4444;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(135deg, var(--bg) 0%, #1a1015 100%);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 40px;
+            color: var(--accent);
+        }
+
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 42px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent), #FF8C61);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+        }
+
+        .subheader {
+            font-size: 16px;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .proof-badge {
+            display: inline-block;
+            background: rgba(255, 107, 53, 0.1);
+            border: 1px solid var(--accent);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent);
+            margin-bottom: 24px;
+        }
+
+        /* Main content grid */
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 60px;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Sample Email Section */
+        .sample-email {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sample-email-header {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sample-email-header::before {
+            content: "✉";
+            font-size: 20px;
+            color: var(--accent);
+        }
+
+        .email-preview {
+            background: #0F0F0F;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 24px;
+            font-size: 14px;
+            line-height: 1.8;
+            flex-grow: 1;
+        }
+
+        .email-to {
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        .email-to span {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .email-subject {
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 16px;
+        }
+
+        .email-body {
+            color: var(--text);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .email-footer {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid #2a2a2a;
+        }
+
+        /* Stats Section */
+        .stats-section {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .explanation {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .explanation-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .explanation-title::before {
+            content: "🤖";
+            font-size: 18px;
+        }
+
+        .explanation-text {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.8;
+        }
+
+        .explanation-text strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        /* Live Metrics */
+        .metrics {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .metrics-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .metrics-title::before {
+            content: "📊";
+            font-size: 18px;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .metric-item {
+            background: #0F0F0F;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metrics-footer {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid #2a2a2a;
+            text-align: center;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            text-align: center;
+            padding: 40px;
+            background: var(--accent-glow);
+            border: 1px solid rgba(255, 107, 53, 0.3);
+            border-radius: 12px;
+        }
+
+        .cta-section h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .cta-section p {
+            font-size: 16px;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--accent), #FF8C61);
+            color: white;
+            padding: 14px 40px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 8px 24px rgba(255, 107, 53, 0.2);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(255, 107, 53, 0.3);
+        }
+
+        .cta-button:active {
+            transform: translateY(0);
+        }
+
+        /* Loading state */
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .spinner {
+            border: 3px solid #2a2a2a;
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--error);
+            color: var(--error);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 40px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s ease;
+        }
+
+        .back-link:hover {
+            color: var(--accent);
+        }
+
+        .back-link::before {
+            content: "← ";
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">Back to Home</a>
+
+        <div class="header">
+            <div class="logo">Koldly</div>
+            <div class="proof-badge">AI-Powered Demo</div>
+            <h1>Meet Your Sample Outreach</h1>
+            <p class="subheader">This email was researched, written, and prepared entirely by Koldly's AI. No human touch. This is exactly what your prospects would receive.</p>
+        </div>
+
+        <div id="content"></div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const companyName = urlParams.get('company') || 'Your Company';
+        const contactName = urlParams.get('contact') || 'Hiring Manager';
+
+        async function loadProof() {
+            const content = document.getElementById('content');
+
+            try {
+                // Generate sample email and fetch metrics
+                const response = await fetch('/api/proof', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        company_name: companyName,
+                        contact_name: contactName
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Render the proof page
+                content.innerHTML = `
+                    <div class="content">
+                        <!-- Sample Email -->
+                        <div class="sample-email">
+                            <div class="sample-email-header">Sample Email</div>
+                            <div class="email-preview">
+                                <div class="email-to">
+                                    <strong>To:</strong> ${data.sample_email.recipient_email || contactName + '@' + companyName.toLowerCase().replace(/\s+/g, '')}.com
+                                </div>
+                                <div class="email-subject">
+                                    <strong>Subject:</strong> ${data.sample_email.subject_line}
+                                </div>
+                                <div class="email-body">${data.sample_email.body}</div>
+                                <div class="email-footer">
+                                    This email was generated by Koldly AI
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stats Section -->
+                        <div class="stats-section">
+                            <!-- Explanation -->
+                            <div class="explanation">
+                                <div class="explanation-title">How This Works</div>
+                                <div class="explanation-text">
+                                    <strong>Koldly just created this sample email for ${companyName}.</strong> We researched your market, analyzed your ideal customer profile, and wrote a personalized outreach email — all autonomously. No copy-paste templates. No generic spam. Just AI that writes like a real sales professional.
+                                    <br><br>
+                                    When you activate Koldly, this same process runs at scale: finding prospects, researching them, writing unique emails, and sending them with perfect timing.
+                                </div>
+                            </div>
+
+                            <!-- Live Metrics -->
+                            <div class="metrics">
+                                <div class="metrics-title">Koldly's Real Performance</div>
+                                <div class="metric-grid">
+                                    <div class="metric-item">
+                                        <div class="metric-value">${formatNumber(data.metrics.emails_sent)}</div>
+                                        <div class="metric-label">Emails Sent</div>
+                                    </div>
+                                    <div class="metric-item">
+                                        <div class="metric-value">${data.metrics.open_rate}%</div>
+                                        <div class="metric-label">Open Rate</div>
+                                    </div>
+                                    <div class="metric-item">
+                                        <div class="metric-value">${data.metrics.reply_rate}%</div>
+                                        <div class="metric-label">Reply Rate</div>
+                                    </div>
+                                    <div class="metric-item">
+                                        <div class="metric-value">${formatNumber(data.metrics.meetings_booked)}</div>
+                                        <div class="metric-label">Meetings Booked</div>
+                                    </div>
+                                </div>
+                                <div class="metrics-footer">
+                                    Updated in real-time • Live campaign data
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CTA Section -->
+                    <div class="cta-section" style="margin-top: 60px;">
+                        <h2>Ready to Automate Your Outreach?</h2>
+                        <p>Start your free trial today. Get Koldly running in under 5 minutes. No credit card required.</p>
+                        <a href="/signup" class="cta-button">Start Free Trial</a>
+                    </div>
+                `;
+            } catch (err) {
+                content.innerHTML = `
+                    <div class="error-message">
+                        ${err.message}. Please try again.
+                    </div>
+                `;
+            }
+        }
+
+        function formatNumber(num) {
+            if (!num) return '0';
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        loadProof();
+    </script>
+</body>
+</html>

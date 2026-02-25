@@ -1,0 +1,13 @@
+=== KOLDLY FLOW AUDIT ===
+Test 1: Landing page
+  Landing page: HTTP 200
+Test 2: Signup page
+  Signup page: HTTP 200
+Test 3: Login page
+  Login page: HTTP 200
+Test 4: Pricing page
+  Pricing page: HTTP 200
+Test 5: Dashboard (should redirect unauthenticated)
+  Dashboard unauthenticated: HTTP 200
+Test 6: API Auth config
+{"googleOAuth":false}

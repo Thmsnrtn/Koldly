@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Koldly Dashboard - Manage your AI-powered sales campaigns, prospects, and email sequences.">
+    <meta name="theme-color" content="#FF6B35">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23FF6B35' width='100' height='100' rx='20'/><text x='50' y='70' font-size='60' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial'>K</text></svg>">
+    <title>Dashboard - Koldly</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0A0A0A;
+            --bg-card: #141414;
+            --bg-card-hover: #1A1A1A;
+            --accent: #FF6B35;
+            --accent-glow: rgba(255, 107, 53, 0.15);
+            --text: #F5F5F5;
+            --text-muted: #888;
+            --border: #222;
+            --input-bg: #0F0F0F;
+            --input-border: #333;
+            --success: #10B981;
+            --error: #EF4444;
+            --warning: #F59E0B;
+            --info: #3B82F6;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Top Navigation Bar */
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            min-width: 44px;
+            min-height: 44px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: rgba(255, 107, 53, 0.3);
+            line-height: 1;
+            border-radius: 6px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .menu-toggle:active {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 998;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        .topbar-logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--accent-glow);
+            border: 1px solid var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            gap: 0;
+        }
+
+        .sidebar {
+            width: 240px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 20px 0;
+            max-height: calc(100vh - 60px);
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 0 12px 16px 12px;
+        }
+
+        .sidebar-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 12px 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 12px;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .sidebar-item:hover {
+            background: var(--bg-card-hover);
+            color: var(--text);
+        }
+
+        .sidebar-item.active {
+            background: var(--accent-glow);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .sidebar-icon {
+            font-size: 18px;
+            width: 24px;
+        }
+
+        /* Content Area */
+        .content {
+            flex: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            overflow-y: auto;
+            max-height: calc(100vh - 60px);
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        /* Stats Grid */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.1);
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        .stat-change {
+            font-size: 12px;
+            color: var(--success);
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 16px;
+            margin-bottom: 40px;
+        }
+
+        .quick-action-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .quick-action-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .quick-action-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .quick-action-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .quick-action-description {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Activity Feed */
+        .activity-feed {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 32px;
+        }
+
+        .activity-feed h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .activity-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-icon {
+            font-size: 16px;
+            width: 24px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .activity-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .activity-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text);
+            margin-bottom: 2px;
+        }
+
+        .activity-time {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Two-Column Layout for Campaigns */
+        .campaigns-grid {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 24px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 24px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 32px;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 600;
+            padding: 12px 0;
+            cursor: pointer;
+            transition: color 0.2s ease;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            color: var(--text);
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent);
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Email List */
+        .email-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .email-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .email-card:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.1);
+        }
+
+        .email-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            gap: 16px;
+        }
+
+        .email-subject {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .email-preview {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .email-footer {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .email-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .status-sent {
+            background: rgba(16, 185, 129, 0.1);
+            color: #6EE7B7;
+        }
+
+        .status-draft {
+            background: rgba(79, 70, 229, 0.1);
+            color: #818CF8;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.25);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(255, 107, 53, 0.35);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 200px;
+                padding: 16px 0;
+            }
+
+            .content {
+                padding: 24px 16px;
+            }
+
+            .campaigns-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .menu-toggle {
+                display: block;
+            }
+
+            .sidebar {
+                display: none;
+                position: fixed;
+                left: 0;
+                top: 60px;
+                width: 200px;
+                height: calc(100vh - 60px);
+                z-index: 999;
+            }
+
+            .sidebar.active {
+                display: block;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .content {
+                padding: 20px 12px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .quick-actions {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .tabs {
+                gap: 12px;
+                margin-bottom: 20px;
+            }
+
+            .campaigns-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .content {
+                padding: 16px 12px;
+            }
+
+            .quick-actions {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-value {
+                font-size: 22px;
+            }
+        }
+
+        /* Skeleton Loader */
+        .skeleton {
+            background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+            border-radius: 8px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .skeleton-card {
+            height: 120px;
+            margin-bottom: 8px;
+        }
+
+        .skeleton-line {
+            height: 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+        }
+
+        /* Chart Container */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            margin-bottom: 24px;
+        }
+
+        .chart-wrapper {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-header h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .chart-toggle {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chart-toggle button {
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chart-toggle button.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .chart-toggle button:hover {
+            border-color: var(--accent);
+        }
+
+        /* Stat Trend */
+        .stat-trend {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-trend.positive {
+            color: var(--success);
+        }
+
+        .stat-trend.negative {
+            color: var(--error);
+        }
+
+        .stat-trend.neutral {
+            color: var(--text-muted);
+        }
+
+        /* Campaign Mini Card */
+        .campaign-mini-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .campaign-mini-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.1);
+        }
+
+        .campaign-mini-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .campaign-mini-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            flex: 1;
+        }
+
+        .campaign-mini-status {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: rgba(16, 185, 129, 0.1);
+            color: #6EE7B7;
+        }
+
+        .status-paused {
+            background: rgba(251, 146, 60, 0.1);
+            color: #FDBA74;
+        }
+
+        .status-draft {
+            background: rgba(79, 70, 229, 0.1);
+            color: #818CF8;
+        }
+
+        .campaign-mini-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            font-size: 12px;
+        }
+
+        .campaign-stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .campaign-stat-label {
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+
+        .campaign-stat-value {
+            color: var(--text);
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        /* Empty State */
+        .empty-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .empty-box .btn {
+            margin-top: 16px;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+    </style>
+    <script src="/js/notifications.js"></script>
+    <script src="/js/error-handler.js"></script>
+    <script src="/js/skeletons.js"></script>
+    <script src="/js/modals.js"></script>
+    <script src="/js/forms.js"></script>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            <a href="/" class="topbar-logo">Koldly</a>
+        </div>
+        <div class="topbar-right">
+            <div class="user-avatar" onclick="navigateTo('/settings')">👤</div>
+        </div>
+    </div>
+
+    <!-- Sidebar overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-item active" onclick="navigateTo('/dashboard')">
+                    <span class="sidebar-icon">📊</span>
+                    <span>Dashboard</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/campaigns')">
+                    <span class="sidebar-icon">📧</span>
+                    <span>Campaigns</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/analytics')">
+                    <span class="sidebar-icon">📈</span>
+                    <span>Analytics</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/integrations')">
+                    <span class="sidebar-icon">🔗</span>
+                    <span>Integrations</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">Settings</div>
+                <div class="sidebar-item" onclick="navigateTo('/settings')">
+                    <span class="sidebar-icon">⚙️</span>
+                    <span>Settings</span>
+                </div>
+                <div class="sidebar-item" onclick="logout()">
+                    <span class="sidebar-icon">🚪</span>
+                    <span>Logout</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="content">
+            <div class="header">
+                <h1>Dashboard</h1>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="stats" id="statsContainer">
+                <!-- Loading skeletons -->
+                <div class="stat-card skeleton">
+                    <div class="skeleton-line" style="width: 60%; height: 10px; margin-bottom: 8px;"></div>
+                    <div class="skeleton-line" style="width: 80%; height: 24px; margin-bottom: 8px;"></div>
+                    <div class="skeleton-line" style="width: 50%; height: 10px;"></div>
+                </div>
+                <div class="stat-card skeleton">
+                    <div class="skeleton-line" style="width: 60%; height: 10px; margin-bottom: 8px;"></div>
+                    <div class="skeleton-line" style="width: 80%; height: 24px; margin-bottom: 8px;"></div>
+                    <div class="skeleton-line" style="width: 50%; height: 10px;"></div>
+                </div>
+                <div class="stat-card skeleton">
+                    <div class="skeleton-line" style="width: 60%; height: 10px; margin-bottom: 8px;"></div>
+                    <div class="skeleton-line" style="width: 80%; height: 24px; margin-bottom: 8px;"></div>
+                    <div class="skeleton-line" style="width: 50%; height: 10px;"></div>
+                </div>
+                <div class="stat-card skeleton">
+                    <div class="skeleton-line" style="width: 60%; height: 10px; margin-bottom: 8px;"></div>
+                    <div class="skeleton-line" style="width: 80%; height: 24px; margin-bottom: 8px;"></div>
+                    <div class="skeleton-line" style="width: 50%; height: 10px;"></div>
+                </div>
+            </div>
+
+            <!-- Email Activity Chart -->
+            <div class="chart-wrapper" id="chartWrapper">
+                <div class="chart-header">
+                    <h3>📈 Email Activity</h3>
+                    <div class="chart-toggle">
+                        <button class="active" onclick="switchChartRange(7)">7 Days</button>
+                        <button onclick="switchChartRange(30)">30 Days</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="activityChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div>
+                <h2 style="font-family: 'Space Grotesk'; font-size: 18px; font-weight: 600; margin-bottom: 16px;">Quick Actions</h2>
+                <div class="quick-actions">
+                    <div class="quick-action-card" onclick="navigateTo('/campaigns?action=new')">
+                        <div class="quick-action-icon">✨</div>
+                        <div class="quick-action-title">New Campaign</div>
+                        <div class="quick-action-description">Create and launch a campaign</div>
+                    </div>
+                    <div class="quick-action-card" onclick="switchTab('prospects')">
+                        <div class="quick-action-icon">👥</div>
+                        <div class="quick-action-title">View Prospects</div>
+                        <div class="quick-action-description">See all discovered prospects</div>
+                    </div>
+                    <div class="quick-action-card" onclick="switchTab('sequences')">
+                        <div class="quick-action-icon">📧</div>
+                        <div class="quick-action-title">Set Sequences</div>
+                        <div class="quick-action-description">Build follow-up sequences</div>
+                    </div>
+                    <div class="quick-action-card" onclick="navigateTo('/integrations')">
+                        <div class="quick-action-icon">🔗</div>
+                        <div class="quick-action-title">Connect Tools</div>
+                        <div class="quick-action-description">Link sales tools</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Campaigns Section with Activity Feed -->
+            <div class="campaigns-grid">
+                <div>
+                    <h2 style="font-family: 'Space Grotesk'; font-size: 18px; font-weight: 600; margin-bottom: 16px;">Active Campaigns</h2>
+                    <div id="campaignsContainer">
+                        <!-- Loading skeletons -->
+                        <div class="campaign-mini-card skeleton">
+                            <div class="skeleton-line" style="width: 40%; height: 12px; margin-bottom: 16px;"></div>
+                            <div class="skeleton-line" style="width: 100%; height: 10px; margin-bottom: 8px;"></div>
+                            <div class="skeleton-line" style="width: 100%; height: 10px;"></div>
+                        </div>
+                        <div class="campaign-mini-card skeleton">
+                            <div class="skeleton-line" style="width: 40%; height: 12px; margin-bottom: 16px;"></div>
+                            <div class="skeleton-line" style="width: 100%; height: 10px; margin-bottom: 8px;"></div>
+                            <div class="skeleton-line" style="width: 100%; height: 10px;"></div>
+                        </div>
+                        <div class="campaign-mini-card skeleton">
+                            <div class="skeleton-line" style="width: 40%; height: 12px; margin-bottom: 16px;"></div>
+                            <div class="skeleton-line" style="width: 100%; height: 10px; margin-bottom: 8px;"></div>
+                            <div class="skeleton-line" style="width: 100%; height: 10px;"></div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 24px;">
+                        <a href="/campaigns" style="color: var(--accent); text-decoration: none; font-size: 14px; font-weight: 600;">View all campaigns →</a>
+                    </div>
+                </div>
+
+                <!-- Activity Feed Sidebar -->
+                <div class="activity-feed">
+                    <h3>📍 Recent Activity</h3>
+                    <div class="activity-list" id="activityContainer">
+                        <!-- Loading skeletons -->
+                        <div class="activity-item">
+                            <div class="activity-icon skeleton" style="width: 20px; height: 20px;"></div>
+                            <div class="activity-content" style="flex: 1;">
+                                <div class="skeleton-line" style="width: 80%; height: 10px; margin-bottom: 6px;"></div>
+                                <div class="skeleton-line" style="width: 50%; height: 8px;"></div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon skeleton" style="width: 20px; height: 20px;"></div>
+                            <div class="activity-content" style="flex: 1;">
+                                <div class="skeleton-line" style="width: 80%; height: 10px; margin-bottom: 6px;"></div>
+                                <div class="skeleton-line" style="width: 50%; height: 8px;"></div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon skeleton" style="width: 20px; height: 20px;"></div>
+                            <div class="activity-content" style="flex: 1;">
+                                <div class="skeleton-line" style="width: 80%; height: 10px; margin-bottom: 6px;"></div>
+                                <div class="skeleton-line" style="width: 50%; height: 8px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Call to Action -->
+            <div style="margin-top: 40px; text-align: center;">
+                <a href="/campaigns?action=new" class="btn btn-primary" style="margin-bottom: 32px;">+ Create New Campaign</a>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // ============ GLOBAL STATE ============
+        let currentChartRange = 7;
+        let activityChart = null;
+
+        // ============ AUTH GUARD ============
+        (function() {
+            var token = localStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+                return;
+            }
+            // Verify token is still valid
+            fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+                .then(function(r) {
+                    if (!r.ok) {
+                        localStorage.removeItem('auth_token');
+                        localStorage.removeItem('user_email');
+                        localStorage.removeItem('user_name');
+                        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+                    }
+                })
+                .catch(function() {});
+        })();
+
+        // ============ SHARED NAV FUNCTIONS ============
+        (function() {
+            var sidebar = document.getElementById('sidebar');
+            var overlay = document.getElementById('sidebarOverlay');
+            var menuBtn = document.querySelector('.menu-toggle');
+
+            function openClose() {
+                var isOpen = sidebar.classList.toggle('active');
+                if (overlay) overlay.classList.toggle('active', isOpen);
+            }
+
+            window.toggleSidebar = openClose;
+
+            if (menuBtn) {
+                menuBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    openClose();
+                });
+            }
+
+            if (overlay) {
+                overlay.addEventListener('touchend', function(e) { e.preventDefault(); sidebar.classList.remove('active'); overlay.classList.remove('active'); });
+                overlay.addEventListener('click', function() { sidebar.classList.remove('active'); overlay.classList.remove('active'); });
+            }
+
+            document.querySelectorAll('.sidebar-item').forEach(function(item) {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth < 768) { sidebar.classList.remove('active'); if (overlay) overlay.classList.remove('active'); }
+                });
+            });
+        })();
+
+        // ============ NAVIGATION ============
+        function navigateTo(path) {
+            window.location.href = path;
+        }
+
+        function logout() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_email');
+            localStorage.removeItem('user_name');
+            window.location.href = '/';
+        }
+
+        function switchTab(tabName) {
+            console.log('Switching to tab:', tabName);
+        }
+
+        // ============ API HELPERS ============
+        async function getAuthToken() {
+            // Get token from localStorage (set during login)
+            return localStorage.getItem('auth_token');
+        }
+
+        async function apiCall(url, options = {}) {
+            const token = await getAuthToken();
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(url, {
+                ...options,
+                headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status}`);
+            }
+
+            return response.json();
+        }
+
+        // ============ DASHBOARD DATA LOADING ============
+        async function loadDashboardStats() {
+            try {
+                const stats = await apiCall('/api/dashboard/stats');
+                renderStatCards(stats);
+            } catch (err) {
+                console.error('Error loading stats:', err);
+                renderStatCards({}); // Show empty state
+            }
+        }
+
+        function renderStatCards(stats) {
+            const container = document.getElementById('statsContainer');
+            if (!container) return;
+
+            const cards = [
+                { label: 'Total Prospects', value: stats.total_prospects || 0, change: 'New prospects discovered' },
+                { label: 'Emails Sent', value: stats.emails_sent || 0, change: `${stats.emails_pending || 0} pending` },
+                { label: 'Open Rate', value: (stats.open_rate || 0) + '%', change: 'vs last week' },
+                { label: 'Reply Rate', value: (stats.reply_rate || 0) + '%', change: `${stats.replies_received || 0} replies` }
+            ];
+
+            container.innerHTML = cards.map(card => `
+                <div class="stat-card" style="animation: fadeIn 0.5s ease forwards;">
+                    <div class="stat-label">${card.label}</div>
+                    <div class="stat-value">${card.value}</div>
+                    <div class="stat-change">${card.change}</div>
+                </div>
+            `).join('');
+        }
+
+        async function loadEmailActivity() {
+            try {
+                const activity = await apiCall(`/api/dashboard/email-activity?days=${currentChartRange}`);
+                renderEmailActivityChart(activity);
+            } catch (err) {
+                console.error('Error loading email activity:', err);
+            }
+        }
+
+        function renderEmailActivityChart(data) {
+            const ctx = document.getElementById('activityChart');
+            if (!ctx) return;
+
+            const labels = data.map(d => {
+                const date = new Date(d.date);
+                return (date.getMonth() + 1) + '/' + date.getDate();
+            });
+
+            const sentData = data.map(d => parseInt(d.sent) || 0);
+            const pendingData = data.map(d => parseInt(d.pending) || 0);
+
+            if (activityChart) {
+                activityChart.destroy();
+            }
+
+            activityChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Sent',
+                            data: sentData,
+                            borderColor: '#FF6B35',
+                            backgroundColor: 'rgba(255, 107, 53, 0.1)',
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: '#FF6B35',
+                            pointBorderColor: '#141414',
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Pending',
+                            data: pendingData,
+                            borderColor: '#888',
+                            backgroundColor: 'rgba(136, 136, 136, 0.05)',
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: '#888',
+                            pointBorderColor: '#141414',
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                color: '#A0A0A0',
+                                font: { family: "'DM Sans', sans-serif", size: 12 }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: '#888' },
+                            grid: { color: '#222', drawBorder: false }
+                        },
+                        x: {
+                            ticks: { color: '#888' },
+                            grid: { display: false, drawBorder: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadActiveCampaigns() {
+            try {
+                const campaigns = await apiCall('/api/dashboard/campaigns');
+                renderActiveCampaigns(campaigns);
+            } catch (err) {
+                console.error('Error loading campaigns:', err);
+                renderActiveCampaigns([]);
+            }
+        }
+
+        function renderActiveCampaigns(campaigns) {
+            const container = document.getElementById('campaignsContainer');
+            if (!container) return;
+
+            if (campaigns.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-box">
+                        📧 No active campaigns yet
+                        <br><br>
+                        <a href="/campaigns?action=new" class="btn btn-primary" style="display: inline-flex;">Create Your First Campaign</a>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = campaigns.slice(0, 3).map(c => {
+                const statusClass = c.status === 'active' ? 'status-active' : (c.status === 'draft' ? 'status-draft' : 'status-paused');
+                const statusText = c.status.charAt(0).toUpperCase() + c.status.slice(1);
+                const statusEmoji = c.status === 'active' ? '✓' : (c.status === 'draft' ? '📝' : '⏸');
+
+                return `
+                    <div class="campaign-mini-card" style="animation: fadeIn 0.5s ease forwards;">
+                        <div class="campaign-mini-header">
+                            <div class="campaign-mini-title">${c.name}</div>
+                            <div class="campaign-mini-status ${statusClass}">${statusEmoji} ${statusText}</div>
+                        </div>
+                        <div class="campaign-mini-stats">
+                            <div class="campaign-stat-item">
+                                <div class="campaign-stat-label">Prospects</div>
+                                <div class="campaign-stat-value">${c.prospect_count}</div>
+                            </div>
+                            <div class="campaign-stat-item">
+                                <div class="campaign-stat-label">Sent</div>
+                                <div class="campaign-stat-value">${c.emails_sent}</div>
+                            </div>
+                            <div class="campaign-stat-item">
+                                <div class="campaign-stat-label">Reply Rate</div>
+                                <div class="campaign-stat-value">${c.reply_rate}%</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function loadRecentActivity() {
+            try {
+                const activities = await apiCall('/api/dashboard/activity');
+                renderActivity(activities);
+            } catch (err) {
+                console.error('Error loading activity:', err);
+                renderActivity([]);
+            }
+        }
+
+        function renderActivity(activities) {
+            const container = document.getElementById('activityContainer');
+            if (!container) return;
+
+            if (activities.length === 0) {
+                container.innerHTML = `<div class="activity-item" style="text-align: center; padding: 24px 0;"><span style="color: var(--text-muted); font-size: 12px;">No activity yet</span></div>`;
+                return;
+            }
+
+            container.innerHTML = activities.slice(0, 10).map(a => {
+                const time = formatTime(new Date(a.timestamp));
+                let icon = '📊';
+                let title = 'Activity';
+
+                if (a.type === 'campaign_launch') {
+                    icon = '🚀';
+                    title = `Campaign launched: ${a.subject}`;
+                } else if (a.type === 'emails_sent') {
+                    icon = '📧';
+                    title = `${a.count} emails sent`;
+                } else if (a.type === 'reply_received') {
+                    icon = '✅';
+                    title = `Reply received for ${a.subject}`;
+                }
+
+                return `
+                    <div class="activity-item" style="animation: fadeIn 0.3s ease forwards;">
+                        <div class="activity-icon">${icon}</div>
+                        <div class="activity-content">
+                            <div class="activity-title">${title}</div>
+                            <div class="activity-time">${time}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatTime(date) {
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+
+            if (minutes < 1) return 'Just now';
+            if (minutes < 60) return minutes + 'm ago';
+            if (hours < 24) return hours + 'h ago';
+            if (days < 7) return days + 'd ago';
+
+            return date.toLocaleDateString();
+        }
+
+        // ============ CHART RANGE SWITCHING ============
+        function switchChartRange(days) {
+            currentChartRange = days;
+
+            // Update button states
+            document.querySelectorAll('.chart-toggle button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Reload chart
+            loadEmailActivity();
+        }
+
+        // ============ INITIALIZATION ============
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDashboardStats();
+            loadEmailActivity();
+            loadActiveCampaigns();
+            loadRecentActivity();
+
+            // Auto-refresh data every 30 seconds
+            setInterval(() => {
+                loadDashboardStats();
+                loadEmailActivity();
+                loadActiveCampaigns();
+                loadRecentActivity();
+            }, 30000);
+        });
+    </script>
+</body>
+</html>

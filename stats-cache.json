@@ -1,0 +1,194 @@
+{
+  "version": 2,
+  "lastComputedDate": "2026-02-24",
+  "dailyActivity": [
+    {
+      "date": "2026-02-12",
+      "messageCount": 836,
+      "sessionCount": 10,
+      "toolCallCount": 307
+    },
+    {
+      "date": "2026-02-13",
+      "messageCount": 730,
+      "sessionCount": 7,
+      "toolCallCount": 269
+    },
+    {
+      "date": "2026-02-14",
+      "messageCount": 1460,
+      "sessionCount": 14,
+      "toolCallCount": 546
+    },
+    {
+      "date": "2026-02-15",
+      "messageCount": 435,
+      "sessionCount": 4,
+      "toolCallCount": 176
+    },
+    {
+      "date": "2026-02-16",
+      "messageCount": 239,
+      "sessionCount": 2,
+      "toolCallCount": 84
+    },
+    {
+      "date": "2026-02-17",
+      "messageCount": 165,
+      "sessionCount": 1,
+      "toolCallCount": 49
+    },
+    {
+      "date": "2026-02-19",
+      "messageCount": 111,
+      "sessionCount": 1,
+      "toolCallCount": 40
+    },
+    {
+      "date": "2026-02-21",
+      "messageCount": 98,
+      "sessionCount": 1,
+      "toolCallCount": 30
+    },
+    {
+      "date": "2026-02-22",
+      "messageCount": 132,
+      "sessionCount": 1,
+      "toolCallCount": 48
+    },
+    {
+      "date": "2026-02-23",
+      "messageCount": 421,
+      "sessionCount": 2,
+      "toolCallCount": 154
+    }
+  ],
+  "dailyModelTokens": [
+    {
+      "date": "2026-02-12",
+      "tokensByModel": {
+        "claude-haiku-4-5-20251001": 28033,
+        "claude-sonnet-4-5-20250929": 6354
+      }
+    },
+    {
+      "date": "2026-02-13",
+      "tokensByModel": {
+        "claude-sonnet-4-5-20250929": 23773,
+        "claude-haiku-4-5-20251001": 2862
+      }
+    },
+    {
+      "date": "2026-02-14",
+      "tokensByModel": {
+        "claude-haiku-4-5-20251001": 17440,
+        "claude-opus-4-6": 25667,
+        "claude-sonnet-4-5-20250929": 460
+      }
+    },
+    {
+      "date": "2026-02-15",
+      "tokensByModel": {
+        "claude-opus-4-6": 7796,
+        "claude-sonnet-4-5-20250929": 3129,
+        "claude-haiku-4-5-20251001": 5092
+      }
+    },
+    {
+      "date": "2026-02-16",
+      "tokensByModel": {
+        "claude-haiku-4-5-20251001": 4807,
+        "claude-sonnet-4-5-20250929": 560
+      }
+    },
+    {
+      "date": "2026-02-17",
+      "tokensByModel": {
+        "claude-sonnet-4-5-20250929": 16320
+      }
+    },
+    {
+      "date": "2026-02-19",
+      "tokensByModel": {
+        "claude-sonnet-4-5-20250929": 10072
+      }
+    },
+    {
+      "date": "2026-02-21",
+      "tokensByModel": {
+        "claude-sonnet-4-5-20250929": 5739
+      }
+    },
+    {
+      "date": "2026-02-22",
+      "tokensByModel": {
+        "claude-haiku-4-5-20251001": 398
+      }
+    },
+    {
+      "date": "2026-02-23",
+      "tokensByModel": {
+        "claude-haiku-4-5-20251001": 1725
+      }
+    }
+  ],
+  "modelUsage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 55361,
+      "outputTokens": 4996,
+      "cacheReadInputTokens": 95918115,
+      "cacheCreationInputTokens": 5312449,
+      "webSearchRequests": 0,
+      "costUSD": 0,
+      "contextWindow": 0,
+      "maxOutputTokens": 0
+    },
+    "claude-sonnet-4-5-20250929": {
+      "inputTokens": 64256,
+      "outputTokens": 2151,
+      "cacheReadInputTokens": 47900747,
+      "cacheCreationInputTokens": 4500304,
+      "webSearchRequests": 0,
+      "costUSD": 0,
+      "contextWindow": 0,
+      "maxOutputTokens": 0
+    },
+    "claude-opus-4-6": {
+      "inputTokens": 27812,
+      "outputTokens": 5651,
+      "cacheReadInputTokens": 35544071,
+      "cacheCreationInputTokens": 2519945,
+      "webSearchRequests": 0,
+      "costUSD": 0,
+      "contextWindow": 0,
+      "maxOutputTokens": 0
+    }
+  },
+  "totalSessions": 43,
+  "totalMessages": 4627,
+  "longestSession": {
+    "sessionId": "f1ea88f5-6ef3-48c5-9f04-67b8b2606fe1",
+    "duration": 481943,
+    "messageCount": 205,
+    "timestamp": "2026-02-14T10:42:25.706Z"
+  },
+  "firstSessionDate": "2026-02-12T01:16:32.471Z",
+  "hourCounts": {
+    "0": 1,
+    "1": 6,
+    "2": 6,
+    "3": 2,
+    "5": 1,
+    "10": 2,
+    "11": 1,
+    "13": 5,
+    "15": 1,
+    "16": 2,
+    "17": 3,
+    "18": 2,
+    "21": 2,
+    "22": 8,
+    "23": 1
+  },
+  "totalSpeculationTimeSavedMs": 0
+}

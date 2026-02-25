@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Billing & Subscription - Koldly</title>
+  <meta name="theme-color" content="#FF6B35">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23FF6B35' width='100' height='100' rx='20'/><text x='50' y='70' font-size='60' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial'>K</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0A0A0A;
+      --bg-card: #141414;
+      --accent: #FF6B35;
+      --accent-hover: #E5592A;
+      --text: #F5F5F5;
+      --text-muted: #888;
+      --border: #1E1E1E;
+      --success: #10B981;
+      --warning: #F59E0B;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 60px 20px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 60px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .header-actions a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+
+    .header-actions a:hover {
+      color: var(--text);
+    }
+
+    .logout-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .logout-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 16px;
+      margin-bottom: 40px;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-bottom: 60px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+    }
+
+    .card h2 {
+      font-size: 18px;
+      margin-bottom: 20px;
+      color: var(--accent);
+    }
+
+    .plan-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .plan-details h3 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .plan-price {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .plan-badge {
+      background: var(--accent);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      color: var(--text-muted);
+    }
+
+    .info-value {
+      font-weight: 500;
+    }
+
+    .status-active {
+      color: var(--success);
+    }
+
+    .status-pending {
+      color: var(--warning);
+    }
+
+    .status-inactive {
+      color: #EF4444;
+    }
+
+    .action-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-danger {
+      background: transparent;
+      border: 1px solid #EF4444;
+      color: #EF4444;
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .invoices-section h2 {
+      font-size: 20px;
+      margin-bottom: 20px;
+      color: var(--accent);
+    }
+
+    .invoice-list {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .invoice-header {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr 100px;
+      gap: 20px;
+      padding: 16px 32px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .invoice-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr 100px;
+      gap: 20px;
+      padding: 16px 32px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      align-items: center;
+      transition: background 0.2s;
+    }
+
+    .invoice-row:hover {
+      background: rgba(255, 107, 53, 0.05);
+    }
+
+    .invoice-row:last-child {
+      border-bottom: none;
+    }
+
+    .invoice-date {
+      color: var(--text-muted);
+    }
+
+    .invoice-amount {
+      font-weight: 600;
+    }
+
+    .invoice-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .invoice-link:hover {
+      text-decoration: underline;
+    }
+
+    .empty-state {
+      padding: 40px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .empty-state p {
+      margin-bottom: 16px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+
+    .error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      color: #EF4444;
+      padding: 16px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    .success {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      color: var(--success);
+      padding: 16px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .invoice-header, .invoice-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .invoice-header {
+        display: none;
+      }
+
+      .invoice-row {
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+      }
+
+      .invoice-row::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--text-muted);
+        font-size: 12px;
+      }
+    }
+  </style>
+    <script src="/js/notifications.js"></script>
+    <script src="/js/error-handler.js"></script>
+    <script src="/js/skeletons.js"></script>
+    <script src="/js/modals.js"></script>
+    <script src="/js/forms.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <a href="/dashboard" class="logo">Koldly</a>
+      <div class="header-actions">
+        <a href="/dashboard">Back to Dashboard</a>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+    </header>
+
+    <div id="messageContainer"></div>
+
+    <h1>Billing & Subscription</h1>
+    <p class="subtitle">Manage your plan, payment method, and invoices</p>
+
+    <div class="content-grid">
+      <!-- Current Plan -->
+      <div class="card">
+        <h2>Current Plan</h2>
+        <div id="planInfo" class="loading">Loading plan information...</div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="card">
+        <h2>Quick Actions</h2>
+        <div class="action-group">
+          <button class="btn btn-primary" onclick="openStripePortal()">Manage Payment Method</button>
+        </div>
+        <div class="action-group">
+          <button class="btn btn-primary" onclick="openStripePortal()">View All Invoices</button>
+        </div>
+        <div class="action-group">
+          <button class="btn btn-secondary" onclick="openStripePortal()">Change Plan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Invoices -->
+    <div class="invoices-section">
+      <h2>Recent Invoices</h2>
+      <div id="invoicesList" class="loading">Loading invoices...</div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      window.location.href = '/login';
+    }
+
+    function showMessage(message, type = 'success') {
+      const container = document.getElementById('messageContainer');
+      container.innerHTML = `<div class="${type}">${message}</div>`;
+      setTimeout(() => { container.innerHTML = ''; }, 5000);
+    }
+
+    function logout() {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_email');
+      localStorage.removeItem('user_name');
+      window.location.href = '/login';
+    }
+
+    function openStripePortal() {
+      fetch('/api/billing/portal', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.portalUrl) {
+          window.open(data.portalUrl, '_blank');
+        } else {
+          showMessage(data.error || 'Failed to open billing portal', 'error');
+        }
+      })
+      .catch(err => showMessage(err.message, 'error'));
+    }
+
+    // Load plan info
+    fetch('/api/billing/plan', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        const planInfo = document.getElementById('planInfo');
+        planInfo.innerHTML = `
+          <div class="plan-info">
+            <div class="plan-details">
+              <h3>${data.plan.name}</h3>
+              <div class="plan-price">\$${data.plan.monthlyPrice}/month</div>
+            </div>
+            <div class="plan-badge">${data.plan.status === 'active' ? 'Active' : 'Inactive'}</div>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Status</span>
+            <span class="info-value status-${data.plan.status}">${data.plan.status.charAt(0).toUpperCase() + data.plan.status.slice(1)}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Billing Cycle</span>
+            <span class="info-value">Monthly</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Next Billing Date</span>
+            <span class="info-value">${new Date(data.plan.nextBillingDate).toLocaleDateString()}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Renewal Date</span>
+            <span class="info-value">${new Date(data.plan.renewalDate).toLocaleDateString()}</span>
+          </div>
+        `;
+      }
+    })
+    .catch(err => {
+      document.getElementById('planInfo').innerHTML = `<div class="error">Failed to load plan information</div>`;
+    });
+
+    // Load invoices
+    fetch('/api/billing/invoices', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success && data.invoices.length > 0) {
+        const invoicesList = document.getElementById('invoicesList');
+        let html = '<div class="invoice-list"><div class="invoice-header"><span>Date</span><span>Amount</span><span>Status</span><span>Invoice</span><span></span></div>';
+
+        data.invoices.forEach(invoice => {
+          html += `
+            <div class="invoice-row">
+              <span class="invoice-date">${new Date(invoice.date).toLocaleDateString()}</span>
+              <span class="invoice-amount">\$${(invoice.amount / 100).toFixed(2)}</span>
+              <span>${invoice.status}</span>
+              <span>${invoice.number}</span>
+              <a class="invoice-link" onclick="openStripePortal()">View</a>
+            </div>
+          `;
+        });
+        html += '</div>';
+        invoicesList.innerHTML = html;
+      } else {
+        document.getElementById('invoicesList').innerHTML = '<div class="empty-state"><p>No invoices yet</p><p>Invoices will appear after your first charge</p></div>';
+      }
+    })
+    .catch(err => {
+      document.getElementById('invoicesList').innerHTML = `<div class="error">Failed to load invoices</div>`;
+    });
+  </script>
+</body>
+</html>

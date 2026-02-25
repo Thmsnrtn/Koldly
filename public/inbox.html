@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inbox - Koldly</title>
+  <meta name="theme-color" content="#FF6B35">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23FF6B35' width='100' height='100' rx='20'/><text x='50' y='70' font-size='60' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial'>K</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0A0A0A;
+      --bg-card: #141414;
+      --bg-hover: #1A1A1A;
+      --accent: #FF6B35;
+      --accent-hover: #E5592A;
+      --accent-glow: rgba(255, 107, 53, 0.15);
+      --text: #F5F5F5;
+      --text-muted: #888;
+      --border: #1E1E1E;
+      --input-bg: #0F0F0F;
+      --input-border: #2A2A2A;
+      --success: #22C55E;
+      --warning: #EAB308;
+      --error: #EF4444;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Layout */
+    .container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 240px;
+      background: var(--bg-card);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      position: fixed;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .main {
+      margin-left: 240px;
+      flex: 1;
+      padding: 24px;
+    }
+
+    /* Sidebar */
+    .sidebar-header {
+      padding: 0 20px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), #FF8C61);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .sidebar-section {
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-section:last-child {
+      border-bottom: none;
+    }
+
+    .sidebar-section-title {
+      padding: 0 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .sidebar-item {
+      padding: 12px 20px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .sidebar-item:hover,
+    .sidebar-item.active {
+      color: var(--accent);
+      background: var(--accent-glow);
+    }
+
+    /* Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), #FF8C61);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Header */
+    .inbox-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .inbox-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 10px 16px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .btn:hover {
+      background: var(--accent-hover);
+      transform: translateY(-2px);
+    }
+
+    .btn.secondary {
+      background: var(--bg-card);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn.secondary:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent);
+    }
+
+    /* Filters */
+    .filters {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .filter-chip {
+      padding: 8px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .filter-chip:hover,
+    .filter-chip.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    /* Inbox List */
+    .inbox-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .inbox-empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+
+    .inbox-empty-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .reply-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .reply-item:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent);
+    }
+
+    .reply-item.unread {
+      border-left: 3px solid var(--accent);
+    }
+
+    .reply-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .reply-from {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .reply-time {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .reply-meta {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .category-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .category-badge.interested {
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--success);
+    }
+
+    .category-badge.not_interested {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--error);
+    }
+
+    .category-badge.ooo {
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--success);
+    }
+
+    .category-badge.objection {
+      background: rgba(234, 179, 8, 0.1);
+      color: var(--warning);
+    }
+
+    .category-badge.uncategorized {
+      background: rgba(136, 136, 136, 0.1);
+      color: var(--text-muted);
+    }
+
+    .confidence-score {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .confidence-score.high {
+      color: var(--success);
+    }
+
+    .confidence-score.medium {
+      color: var(--warning);
+    }
+
+    .confidence-score.low {
+      color: var(--error);
+    }
+
+    .reply-subject {
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .reply-preview {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .reply-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      justify-content: flex-end;
+    }
+
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      font-size: 14px;
+    }
+
+    .icon-btn:hover {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 32px;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .modal-title {
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    .modal-close:hover {
+      color: var(--text);
+    }
+
+    .reply-detail {
+      margin-bottom: 24px;
+    }
+
+    .reply-detail-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .reply-detail-value {
+      font-size: 14px;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+
+    /* Loading */
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--input-border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+        padding: 16px;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .main {
+        margin-left: 0;
+        padding: 16px;
+      }
+
+      .inbox-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .reply-item-header {
+        flex-direction: column;
+      }
+    }
+  </style>
+    <script src="/js/notifications.js"></script>
+    <script src="/js/error-handler.js"></script>
+    <script src="/js/skeletons.js"></script>
+    <script src="/js/modals.js"></script>
+    <script src="/js/forms.js"></script>
+</head>
+<body>
+  <div class="container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">Koldly</div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Navigation</div>
+        <a href="/dashboard" class="sidebar-item">Dashboard</a>
+        <a href="/campaigns" class="sidebar-item">Campaigns</a>
+        <a href="/analytics" class="sidebar-item">Analytics</a>
+        <a href="/inbox" class="sidebar-item active">Inbox</a>
+        <a href="/settings" class="sidebar-item">Settings</a>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Account</div>
+        <a href="/settings" class="sidebar-item">Profile</a>
+        <a href="#" class="sidebar-item" onclick="logout()">Logout</a>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+      <!-- Stats -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="stat-label">Total Replies</div>
+          <div class="stat-value" id="statTotal">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Interested</div>
+          <div class="stat-value" id="statInterested" style="color: var(--success);">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Objections</div>
+          <div class="stat-value" id="statObjection" style="color: var(--warning);">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Unread</div>
+          <div class="stat-value" id="statUnread" style="color: var(--accent);">0</div>
+        </div>
+      </div>
+
+      <!-- Header -->
+      <div class="inbox-header">
+        <h1 class="inbox-title">Unified Inbox</h1>
+        <div class="controls">
+          <button class="btn secondary" onclick="refreshInbox()">🔄 Refresh</button>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters">
+        <div class="filter-chip active" onclick="filterReplies('all')">All</div>
+        <div class="filter-chip" onclick="filterReplies('interested')">Interested ✓</div>
+        <div class="filter-chip" onclick="filterReplies('objection')">Objections ⚠</div>
+        <div class="filter-chip" onclick="filterReplies('not_interested')">Not Interested ✗</div>
+        <div class="filter-chip" onclick="filterReplies('ooo')">Out of Office</div>
+        <div class="filter-chip" onclick="filterReplies('uncategorized')">Uncategorized ?</div>
+        <div class="filter-chip" onclick="filterReplies('unread')">Unread</div>
+      </div>
+
+      <!-- Inbox List -->
+      <div class="inbox-list" id="inboxList">
+        <div class="inbox-empty">
+          <div class="inbox-empty-icon">📭</div>
+          <p>No replies yet</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reply Detail Modal -->
+  <div class="modal" id="replyModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">Reply Details</h2>
+        <button class="modal-close" onclick="closeReplyModal()">×</button>
+      </div>
+
+      <div class="reply-detail">
+        <div class="reply-detail-label">From</div>
+        <div class="reply-detail-value" id="modalFrom">—</div>
+      </div>
+
+      <div class="reply-detail">
+        <div class="reply-detail-label">To</div>
+        <div class="reply-detail-value" id="modalTo">—</div>
+      </div>
+
+      <div class="reply-detail">
+        <div class="reply-detail-label">Subject</div>
+        <div class="reply-detail-value" id="modalSubject">—</div>
+      </div>
+
+      <div class="reply-detail">
+        <div class="reply-detail-label">Category & Confidence</div>
+        <div class="reply-detail-value">
+          <span id="modalCategoryBadge"></span>
+          <span id="modalConfidence" class="confidence-score"></span>
+        </div>
+      </div>
+
+      <div class="reply-detail">
+        <div class="reply-detail-label">Message</div>
+        <div class="reply-detail-value" id="modalBody" style="white-space: pre-wrap;">—</div>
+      </div>
+
+      <div class="reply-detail">
+        <div class="reply-detail-label">Received</div>
+        <div class="reply-detail-value" id="modalReceivedAt">—</div>
+      </div>
+
+      <div class="reply-actions">
+        <button class="btn secondary" onclick="toggleArchiveFromModal()">Archive</button>
+        <button class="btn" onclick="closeReplyModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentFilter = 'all';
+    let currentReplyId = null;
+    let authToken = localStorage.getItem('auth_token');
+
+    // Verify auth
+    if (!authToken) {
+      window.location.href = '/login?redirect=/inbox';
+    }
+
+    // Initialize
+    async function init() {
+      await Promise.all([loadStats(), loadReplies()]);
+      setInterval(loadStats, 30000); // Refresh stats every 30s
+    }
+
+    // Load stats
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/inbox/stats', {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          const stats = data.data;
+          document.getElementById('statTotal').textContent = stats.total;
+          document.getElementById('statUnread').textContent = stats.unread;
+
+          Object.entries(stats.by_category).forEach(([cat, info]) => {
+            if (cat === 'interested') {
+              document.getElementById('statInterested').textContent = info.count;
+            } else if (cat === 'objection') {
+              document.getElementById('statObjection').textContent = info.count;
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Error loading stats:', err);
+      }
+    }
+
+    // Load replies
+    async function loadReplies() {
+      try {
+        let url = '/api/inbox/replies?limit=50&offset=0';
+
+        if (currentFilter !== 'all' && currentFilter !== 'unread') {
+          url += `&category=${currentFilter}`;
+        } else if (currentFilter === 'unread') {
+          url += '&is_read=false';
+        }
+
+        url += '&sort=newest';
+
+        const res = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          renderReplies(data.data);
+        }
+      } catch (err) {
+        console.error('Error loading replies:', err);
+      }
+    }
+
+    // Render replies
+    function renderReplies(replies) {
+      const list = document.getElementById('inboxList');
+
+      if (replies.length === 0) {
+        list.innerHTML = `
+          <div class="inbox-empty">
+            <div class="inbox-empty-icon">📭</div>
+            <p>No replies in this category</p>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = replies.map(reply => {
+        const date = new Date(reply.reply_received_at);
+        const timeStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        const confidenceClass = reply.category_confidence > 0.85 ? 'high' : reply.category_confidence > 0.7 ? 'medium' : 'low';
+        const categoryLabels = {
+          'interested': '✓ Interested',
+          'not_interested': '✗ Not Interested',
+          'ooo': '📍 Out of Office',
+          'objection': '⚠ Objection',
+          'uncategorized': '? Uncategorized'
+        };
+
+        return `
+          <div class="reply-item ${!reply.is_read ? 'unread' : ''}" onclick="openReplyModal(${reply.id})">
+            <div class="reply-item-header">
+              <div>
+                <div class="reply-from">${reply.reply_from_name || reply.reply_from_email}</div>
+                <div class="reply-time">${timeStr}</div>
+              </div>
+            </div>
+
+            <div class="reply-meta">
+              <div class="category-badge ${reply.reply_category}">
+                ${categoryLabels[reply.reply_category]}
+              </div>
+              <div class="confidence-score ${confidenceClass}">
+                ${(reply.category_confidence * 100).toFixed(0)}% confident
+              </div>
+            </div>
+
+            <div class="reply-subject">${escapeHtml(reply.reply_subject || '(no subject)')}</div>
+            <div class="reply-preview">${escapeHtml(reply.reply_body || '(no content)')}</div>
+
+            <div class="reply-actions" onclick="event.stopPropagation()">
+              <button class="icon-btn" onclick="markAsRead(${reply.id}, ${!reply.is_read})">
+                ${reply.is_read ? '👁' : '👁‍🗨'}
+              </button>
+              <button class="icon-btn" onclick="toggleArchive(${reply.id}, ${reply.is_archived})">
+                ${reply.is_archived ? '📬' : '📭'}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Filter replies
+    function filterReplies(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      loadReplies();
+    }
+
+    // Open reply modal
+    async function openReplyModal(id) {
+      try {
+        const res = await fetch(`/api/inbox/replies/${id}`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          const reply = data.data;
+          currentReplyId = id;
+
+          document.getElementById('modalFrom').textContent = reply.reply_from_name ? `${reply.reply_from_name} <${reply.reply_from_email}>` : reply.reply_from_email;
+          document.getElementById('modalTo').textContent = reply.recipient_email;
+          document.getElementById('modalSubject').textContent = reply.reply_subject || '(no subject)';
+          document.getElementById('modalBody').textContent = reply.reply_body || '(no content)';
+
+          const date = new Date(reply.reply_received_at);
+          document.getElementById('modalReceivedAt').textContent = date.toLocaleString();
+
+          const categoryLabels = {
+            'interested': '✓ Interested',
+            'not_interested': '✗ Not Interested',
+            'ooo': '📍 Out of Office',
+            'objection': '⚠ Objection',
+            'uncategorized': '? Uncategorized'
+          };
+
+          const badge = `<div class="category-badge ${reply.reply_category}" style="display:inline-flex;">${categoryLabels[reply.reply_category]}</div>`;
+          document.getElementById('modalCategoryBadge').innerHTML = badge;
+          document.getElementById('modalConfidence').textContent = `(${(reply.category_confidence * 100).toFixed(0)}% confident)`;
+
+          // Mark as read
+          if (!reply.is_read) {
+            await fetch(`/api/inbox/replies/${id}/read`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+              },
+              body: JSON.stringify({ is_read: true })
+            });
+          }
+
+          document.getElementById('replyModal').classList.add('active');
+          loadStats(); // Refresh stats
+        }
+      } catch (err) {
+        console.error('Error opening reply:', err);
+      }
+    }
+
+    // Close reply modal
+    function closeReplyModal() {
+      document.getElementById('replyModal').classList.remove('active');
+      currentReplyId = null;
+    }
+
+    // Mark as read
+    async function markAsRead(id, isRead) {
+      try {
+        await fetch(`/api/inbox/replies/${id}/read`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({ is_read: isRead })
+        });
+        loadReplies();
+        loadStats();
+      } catch (err) {
+        console.error('Error updating read status:', err);
+      }
+    }
+
+    // Toggle archive
+    async function toggleArchive(id, isArchived) {
+      try {
+        await fetch(`/api/inbox/replies/${id}/archive`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({ is_archived: !isArchived })
+        });
+        loadReplies();
+        loadStats();
+      } catch (err) {
+        console.error('Error toggling archive:', err);
+      }
+    }
+
+    // Toggle archive from modal
+    async function toggleArchiveFromModal() {
+      if (currentReplyId) {
+        await toggleArchive(currentReplyId, false);
+        closeReplyModal();
+      }
+    }
+
+    // Refresh inbox
+    function refreshInbox() {
+      loadStats();
+      loadReplies();
+    }
+
+    // Logout
+    function logout() {
+      localStorage.removeItem('auth_token');
+      window.location.href = '/login';
+    }
+
+    // Escape HTML
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Start
+    init();
+  </script>
+</body>
+</html>

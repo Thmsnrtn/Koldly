@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Campaign Analytics - Koldly">
+    <meta name="theme-color" content="#FF6B35">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23FF6B35' width='100' height='100' rx='20'/><text x='50' y='70' font-size='60' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial'>K</text></svg>">
+    <title>Analytics - Koldly</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0A0A0A;
+            --bg-card: #141414;
+            --bg-card-hover: #1A1A1A;
+            --accent: #FF6B35;
+            --accent-glow: rgba(255, 107, 53, 0.15);
+            --text: #F5F5F5;
+            --text-muted: #888;
+            --border: #222;
+            --input-bg: #0F0F0F;
+            --input-border: #333;
+            --success: #10B981;
+            --error: #EF4444;
+            --warning: #F59E0B;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ====== SHARED NAV: Top Bar ====== */
+        .topbar { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: var(--bg-card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+        .topbar-left { display: flex; align-items: center; gap: 16px; }
+        .menu-toggle { display: none; background: none; border: none; color: var(--text); font-size: 24px; cursor: pointer; padding: 8px 12px; min-width: 44px; min-height: 44px; touch-action: manipulation; -webkit-tap-highlight-color: rgba(255, 107, 53, 0.3); line-height: 1; border-radius: 6px; position: relative; z-index: 10; }
+        .menu-toggle:active { background: rgba(255, 255, 255, 0.1); }
+        .sidebar-overlay { display: none; position: fixed; top: 60px; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 998; }
+        .sidebar-overlay.active { display: block; }
+        .topbar-logo { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; color: var(--accent); text-decoration: none; }
+        .topbar-right { display: flex; align-items: center; gap: 16px; }
+        .user-avatar { width: 36px; height: 36px; border-radius: 8px; background: var(--accent-glow); border: 1px solid var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+
+        /* ====== SHARED NAV: Sidebar ====== */
+        .main-layout { display: flex; gap: 0; }
+        .sidebar { width: 240px; background: var(--bg-card); border-right: 1px solid var(--border); padding: 20px 0; max-height: calc(100vh - 60px); overflow-y: auto; position: sticky; top: 60px; }
+        .sidebar-section { padding: 0 12px 16px 12px; }
+        .sidebar-title { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; padding: 12px 12px; letter-spacing: 0.5px; }
+        .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 12px 12px; color: var(--text-muted); text-decoration: none; border-radius: 8px; transition: all 0.2s ease; cursor: pointer; font-size: 14px; }
+        .sidebar-item:hover { background: var(--bg-card-hover); color: var(--text); }
+        .sidebar-item.active { background: var(--accent-glow); color: var(--accent); font-weight: 600; }
+        .sidebar-icon { font-size: 18px; width: 24px; }
+
+        /* ====== Content Area ====== */
+        .content { flex: 1; max-width: 1400px; margin: 0 auto; padding: 40px 20px; overflow-y: auto; max-height: calc(100vh - 60px); }
+
+        /* ====== Page-specific styles ====== */
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 1px solid var(--border); gap: 20px; }
+        .header-content h1 { font-family: 'Space Grotesk', sans-serif; font-size: 32px; font-weight: 700; margin-bottom: 4px; }
+        .header-content p { color: var(--text-muted); font-size: 14px; }
+        .header-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px var(--accent-glow); }
+        .btn-secondary { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { border-color: var(--accent); background: var(--bg-card-hover); }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 40px; }
+        .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; transition: all 0.2s ease; }
+        .stat-card:hover { border-color: var(--accent); box-shadow: 0 4px 20px var(--accent-glow); }
+        .stat-card.hot { border-color: var(--error); background: rgba(239, 68, 68, 0.05); }
+        .stat-card.warm { border-color: var(--warning); background: rgba(245, 158, 11, 0.05); }
+        .stat-card.success { border-color: var(--success); background: rgba(16, 185, 129, 0.05); }
+        .stat-value { font-size: 28px; font-weight: 700; margin-bottom: 8px; color: var(--accent); }
+        .stat-card.success .stat-value { color: var(--success); }
+        .stat-card.warm .stat-value { color: var(--warning); }
+        .stat-card.hot .stat-value { color: var(--error); }
+        .stat-label { font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-bottom: 40px; }
+        .chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; transition: all 0.2s ease; }
+        .chart-card:hover { border-color: var(--accent); box-shadow: 0 4px 20px var(--accent-glow); }
+        .chart-card h2 { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+
+        .table-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; overflow: hidden; transition: all 0.2s ease; }
+        .table-card:hover { border-color: var(--accent); box-shadow: 0 4px 20px var(--accent-glow); }
+        .table-card h2 { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+        .table-description { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+
+        table { width: 100%; border-collapse: collapse; }
+        thead tr { border-bottom: 1px solid var(--border); }
+        th { padding: 12px 16px; text-align: left; font-weight: 600; font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        td { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 14px; }
+        tbody tr { transition: background 0.2s ease; }
+        tbody tr:hover { background: var(--bg-card-hover); }
+        tbody tr:last-child { border-bottom: none; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+        .empty-state-icon { font-size: 40px; margin-bottom: 16px; }
+
+        .badge { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+        .badge.hot { background: rgba(239, 68, 68, 0.2); color: var(--error); }
+        .badge.warm { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .badge.cold { background: rgba(136, 136, 136, 0.2); color: var(--text-muted); }
+
+        .text-right { text-align: right; }
+        .text-success { color: var(--success); }
+        .text-warning { color: var(--warning); }
+        .text-accent { color: var(--accent); }
+        .text-muted { color: var(--text-muted); }
+        .trophy { color: var(--warning); }
+
+        /* ====== Responsive ====== */
+        @media (max-width: 1024px) {
+            .sidebar { width: 200px; padding: 16px 0; }
+            .content { padding: 24px 16px; }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .menu-toggle { display: block; }
+            .sidebar { display: none; position: fixed; left: 0; top: 60px; width: 200px; height: calc(100vh - 60px); z-index: 999; }
+            .sidebar.active { display: block; }
+            .header { flex-direction: column; gap: 16px; }
+            .header-actions { justify-content: flex-start; }
+            .content { padding: 20px 12px; }
+            .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+            .charts-grid { grid-template-columns: 1fr; }
+            th, td { padding: 10px 12px; font-size: 13px; }
+        }
+
+        @media (max-width: 480px) {
+            .header-content h1 { font-size: 24px; }
+            .content { padding: 16px 12px; }
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    </style>
+    <script src="/js/notifications.js"></script>
+    <script src="/js/error-handler.js"></script>
+    <script src="/js/skeletons.js"></script>
+    <script src="/js/modals.js"></script>
+    <script src="/js/forms.js"></script>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            <a href="/" class="topbar-logo">Koldly</a>
+        </div>
+        <div class="topbar-right">
+            <div class="user-avatar" onclick="navigateTo('/settings')">👤</div>
+        </div>
+    </div>
+
+    <!-- Sidebar overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-item" onclick="navigateTo('/dashboard')">
+                    <span class="sidebar-icon">📊</span>
+                    <span>Dashboard</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/campaigns')">
+                    <span class="sidebar-icon">📧</span>
+                    <span>Campaigns</span>
+                </div>
+                <div class="sidebar-item active" onclick="navigateTo('/analytics')">
+                    <span class="sidebar-icon">📈</span>
+                    <span>Analytics</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/integrations')">
+                    <span class="sidebar-icon">🔗</span>
+                    <span>Integrations</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">Settings</div>
+                <div class="sidebar-item" onclick="navigateTo('/settings')">
+                    <span class="sidebar-icon">⚙️</span>
+                    <span>Settings</span>
+                </div>
+                <div class="sidebar-item" onclick="logout()">
+                    <span class="sidebar-icon">🚪</span>
+                    <span>Logout</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="content">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-content">
+                    <h1>Campaign Analytics</h1>
+                    <p id="campaignName">Loading campaign...</p>
+                </div>
+                <div class="header-actions">
+                    <button onclick="exportEngagementReport()" class="btn btn-primary">Export Engagement CSV</button>
+                    <button onclick="exportPerformanceReport()" class="btn btn-secondary">Export Performance CSV</button>
+                </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="stats-grid" id="summaryStats">
+                <!-- Stats injected here -->
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h2>Performance Over Time</h2>
+                    <canvas id="performanceChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h2>Engagement Distribution</h2>
+                    <canvas id="engagementChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Top Performing Templates -->
+            <div class="table-card">
+                <h2>Best Performing Email Templates</h2>
+                <p class="table-description">Ranked by engagement score (opens + clicks)</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Subject Line</th>
+                            <th class="text-right">Sent</th>
+                            <th class="text-right">Opens</th>
+                            <th class="text-right">Clicks</th>
+                            <th class="text-right">Open Rate</th>
+                            <th class="text-right">Click Rate</th>
+                            <th class="text-right">Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="templatesTable">
+                        <tr><td colspan="7" class="empty-state">Loading templates...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Industry Performance -->
+            <div class="table-card">
+                <h2>Industry Performance</h2>
+                <p class="table-description">Email engagement by industry vertical</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Industry</th>
+                            <th class="text-right">Prospects</th>
+                            <th class="text-right">Emails Sent</th>
+                            <th class="text-right">Opens</th>
+                            <th class="text-right">Clicks</th>
+                            <th class="text-right">Open Rate</th>
+                            <th class="text-right">Click Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody id="industryTable">
+                        <tr><td colspan="7" class="empty-state">Loading industry data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Prospect Engagement Scoring -->
+            <div class="table-card">
+                <h2>Prospect Engagement Scoring</h2>
+                <p class="table-description">
+                    <span class="badge hot">Hot</span> = Clicked links &nbsp;
+                    <span class="badge warm">Warm</span> = Multiple opens &nbsp;
+                    <span class="badge cold">Cold</span> = No engagement
+                </p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th>Industry</th>
+                            <th class="text-right">Emails Sent</th>
+                            <th class="text-right">Opens</th>
+                            <th class="text-right">Clicks</th>
+                            <th class="text-right">Last Interaction</th>
+                            <th class="text-right">Level</th>
+                            <th class="text-right">Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="engagementTable">
+                        <tr><td colspan="8" class="empty-state">Loading prospects...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Auth guard — redirect to login if no token
+        (function() {
+            var token = localStorage.getItem('auth_token');
+            if (!token) { window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname); return; }
+            fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+                .then(function(r) { if (!r.ok) { localStorage.removeItem('auth_token'); localStorage.removeItem('user_email'); localStorage.removeItem('user_name'); window.location.href = '/login'; } })
+                .catch(function() {});
+        })();
+
+        // Shared nav functions — iOS-compatible touch handling
+        (function() {
+            var sidebar = document.getElementById('sidebar');
+            var overlay = document.getElementById('sidebarOverlay');
+            var menuBtn = document.querySelector('.menu-toggle');
+
+            function openClose() {
+                var isOpen = sidebar.classList.toggle('active');
+                if (overlay) overlay.classList.toggle('active', isOpen);
+            }
+
+            window.toggleSidebar = openClose;
+
+            if (menuBtn) {
+                menuBtn.addEventListener('touchend', function(e) { e.preventDefault(); openClose(); });
+            }
+
+            if (overlay) {
+                overlay.addEventListener('touchend', function(e) { e.preventDefault(); sidebar.classList.remove('active'); overlay.classList.remove('active'); });
+                overlay.addEventListener('click', function() { sidebar.classList.remove('active'); overlay.classList.remove('active'); });
+            }
+
+            document.querySelectorAll('.sidebar-item').forEach(function(item) {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth < 768) { sidebar.classList.remove('active'); if (overlay) overlay.classList.remove('active'); }
+                });
+            });
+        })();
+        function navigateTo(path) { window.location.href = path; }
+        function logout() { localStorage.removeItem('auth_token'); localStorage.removeItem('user_email'); localStorage.removeItem('user_name'); window.location.href = '/'; }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const campaignId = urlParams.get('campaign');
+
+        let performanceChart = null;
+        let engagementChart = null;
+
+        if (!campaignId) {
+            document.getElementById('campaignName').textContent = 'Select a campaign from your dashboard';
+        }
+
+        async function loadAnalytics() {
+            if (!campaignId) return;
+            try {
+                const campaignRes = await fetch(`/api/campaigns/${campaignId}`);
+                const campaignData = await campaignRes.json();
+                document.getElementById('campaignName').textContent = campaignData.campaign.name;
+
+                const res = await fetch(`/api/campaigns/${campaignId}/analytics?days=30`);
+                const data = await res.json();
+
+                renderSummaryStats(data.summary);
+                renderPerformanceChart(data.performance_over_time);
+                renderEngagementChart(data.prospect_engagement);
+                renderTemplatesTable(data.top_templates);
+                renderIndustryTable(data.industry_performance);
+                renderEngagementTable(data.prospect_engagement);
+            } catch (err) {
+                console.error('Analytics load error:', err);
+            }
+        }
+
+        function renderSummaryStats(summary) {
+            const stats = [
+                { label: 'Total Prospects', value: summary.total_prospects || 0, type: '' },
+                { label: 'Emails Sent', value: summary.emails_sent || 0, type: '' },
+                { label: 'Open Rate', value: `${summary.overall_open_rate || 0}%`, type: 'success' },
+                { label: 'Click Rate', value: `${summary.overall_click_rate || 0}%`, type: 'warm' },
+                { label: 'Bounces', value: summary.bounces || 0, type: 'hot' }
+            ];
+            document.getElementById('summaryStats').innerHTML = stats.map(stat => `
+                <div class="stat-card ${stat.type}">
+                    <div class="stat-value">${stat.value}</div>
+                    <div class="stat-label">${stat.label}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderPerformanceChart(data) {
+            const canvas = document.getElementById('performanceChart');
+            const ctx = canvas.getContext('2d');
+            if (performanceChart) performanceChart.destroy();
+            const sortedData = [...data].reverse();
+            performanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedData.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+                    datasets: [
+                        { label: 'Emails Sent', data: sortedData.map(d => d.emails_sent), borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.4, fill: true },
+                        { label: 'Opens', data: sortedData.map(d => d.unique_opens), borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.1)', tension: 0.4, fill: true },
+                        { label: 'Clicks', data: sortedData.map(d => d.unique_clicks), borderColor: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.1)', tension: 0.4, fill: true }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: true, interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { labels: { color: '#F5F5F5', font: { size: 12 } } } },
+                    scales: {
+                        x: { ticks: { color: '#888' }, grid: { color: 'rgba(34, 34, 34, 0.3)' } },
+                        y: { ticks: { color: '#888' }, grid: { color: 'rgba(34, 34, 34, 0.3)' }, beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function renderEngagementChart(data) {
+            const canvas = document.getElementById('engagementChart');
+            const ctx = canvas.getContext('2d');
+            if (engagementChart) engagementChart.destroy();
+            const hot = data.filter(p => p.engagement_level === 'hot').length;
+            const warm = data.filter(p => p.engagement_level === 'warm').length;
+            const cold = data.filter(p => p.engagement_level === 'cold').length;
+            engagementChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Hot', 'Warm', 'Cold'],
+                    datasets: [{ data: [hot, warm, cold], backgroundColor: ['#EF4444', '#F59E0B', '#888'], borderWidth: 2, borderColor: '#141414' }]
+                },
+                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#F5F5F5', font: { size: 12 } } } } }
+            });
+        }
+
+        function renderTemplatesTable(templates) {
+            if (templates.length === 0) {
+                document.getElementById('templatesTable').innerHTML = '<tr><td colspan="7" class="empty-state">No sent emails yet</td></tr>';
+                return;
+            }
+            document.getElementById('templatesTable').innerHTML = templates.map((t, idx) => `
+                <tr>
+                    <td>${idx === 0 ? '<span class="trophy">🏆</span> ' : ''}${t.subject_line}</td>
+                    <td class="text-right">${t.sent_count}</td>
+                    <td class="text-right">${t.unique_opens || 0}</td>
+                    <td class="text-right">${t.unique_clicks || 0}</td>
+                    <td class="text-right text-success">${t.open_rate || 0}%</td>
+                    <td class="text-right text-warning">${t.click_rate || 0}%</td>
+                    <td class="text-right text-accent"><strong>${t.engagement_score || 0}</strong></td>
+                </tr>
+            `).join('');
+        }
+
+        function renderIndustryTable(industries) {
+            if (industries.length === 0) {
+                document.getElementById('industryTable').innerHTML = '<tr><td colspan="7" class="empty-state">No industry data yet</td></tr>';
+                return;
+            }
+            document.getElementById('industryTable').innerHTML = industries.map(i => `
+                <tr>
+                    <td>${i.industry || 'Unknown'}</td>
+                    <td class="text-right">${i.prospect_count || 0}</td>
+                    <td class="text-right">${i.emails_sent || 0}</td>
+                    <td class="text-right">${i.opens || 0}</td>
+                    <td class="text-right">${i.clicks || 0}</td>
+                    <td class="text-right text-success">${i.open_rate || 0}%</td>
+                    <td class="text-right text-warning">${i.click_rate || 0}%</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderEngagementTable(prospects) {
+            if (prospects.length === 0) {
+                document.getElementById('engagementTable').innerHTML = '<tr><td colspan="8" class="empty-state">No prospects yet</td></tr>';
+                return;
+            }
+            document.getElementById('engagementTable').innerHTML = prospects.slice(0, 50).map(p => {
+                const levelBadge = { hot: '<span class="badge hot">Hot</span>', warm: '<span class="badge warm">Warm</span>', cold: '<span class="badge cold">Cold</span>' }[p.engagement_level] || '';
+                const lastInteraction = p.last_interaction ? new Date(p.last_interaction).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Never';
+                return `
+                    <tr>
+                        <td>${p.company_name}</td>
+                        <td class="text-muted">${p.industry || 'Unknown'}</td>
+                        <td class="text-right">${p.emails_sent || 0}</td>
+                        <td class="text-right">${p.total_opens || 0}</td>
+                        <td class="text-right">${p.total_clicks || 0}</td>
+                        <td class="text-right text-muted">${lastInteraction}</td>
+                        <td class="text-right">${levelBadge}</td>
+                        <td class="text-right text-accent"><strong>${p.engagement_score || 0}</strong></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function exportEngagementReport() { if (campaignId) window.location.href = `/api/campaigns/${campaignId}/analytics/export?type=engagement`; }
+        function exportPerformanceReport() { if (campaignId) window.location.href = `/api/campaigns/${campaignId}/analytics/export?type=performance`; }
+
+        loadAnalytics();
+        if (campaignId) setInterval(loadAnalytics, 60000);
+    </script>
+</body>
+</html>

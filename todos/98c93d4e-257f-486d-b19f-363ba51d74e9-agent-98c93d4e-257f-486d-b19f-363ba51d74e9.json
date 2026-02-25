@@ -1,0 +1,27 @@
+[
+  {
+    "content": "Investigate signup endpoint and form code",
+    "status": "completed",
+    "activeForm": "Investigating signup endpoint and form code"
+  },
+  {
+    "content": "Identify root cause with evidence",
+    "status": "completed",
+    "activeForm": "Identifying root cause with evidence"
+  },
+  {
+    "content": "Implement fix — configure helmet CSP",
+    "status": "in_progress",
+    "activeForm": "Implementing fix — configuring helmet CSP"
+  },
+  {
+    "content": "Push and verify fix on production",
+    "status": "pending",
+    "activeForm": "Pushing and verifying fix on production"
+  },
+  {
+    "content": "Notify owner",
+    "status": "pending",
+    "activeForm": "Notifying owner"
+  }
+]

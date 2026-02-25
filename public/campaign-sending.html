@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign Sending - Koldly</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0A0A0A;
+            --bg-card: #141414;
+            --bg-card-hover: #1A1A1A;
+            --accent: #FF6B35;
+            --accent-glow: rgba(255, 107, 53, 0.15);
+            --text: #F5F5F5;
+            --text-muted: #888;
+            --border: #222;
+            --input-bg: #0F0F0F;
+            --input-border: #333;
+            --success: #10B981;
+            --error: #EF4444;
+            --warning: #F59E0B;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header-sub {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(255, 107, 53, 0.2);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .campaign-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            transition: all 0.2s ease;
+        }
+
+        .campaign-card:hover {
+            border-color: var(--accent);
+            background: var(--bg-card-hover);
+        }
+
+        .campaign-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .campaign-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .campaign-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .status-paused {
+            background: rgba(240, 113, 47, 0.1);
+            color: var(--warning);
+        }
+
+        .status-pending {
+            background: rgba(100, 116, 139, 0.1);
+            color: #64748B;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-box {
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .queue-status {
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .queue-status h3 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .queue-bars {
+            display: flex;
+            gap: 12px;
+        }
+
+        .queue-bar {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .queue-bar-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .queue-bar-fill {
+            height: 8px;
+            background: var(--input-border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .queue-bar-progress {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .campaign-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .sequence-builder {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .sequence-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .sequence-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .sequence-step {
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .step-number {
+            background: var(--accent);
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .step-value {
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .delay-input {
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text);
+            font-size: 13px;
+            width: 80px;
+            text-align: center;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-input {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 13px;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .form-textarea {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            padding: 12px;
+            color: var(--text);
+            font-size: 13px;
+            font-family: 'DM Sans', sans-serif;
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid var(--accent);
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #FCA5A5;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        .success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #86EFAC;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+    </style>
+    <script src="/js/notifications.js"></script>
+    <script src="/js/error-handler.js"></script>
+    <script src="/js/skeletons.js"></script>
+    <script src="/js/modals.js"></script>
+    <script src="/js/forms.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Campaign Sending</h1>
+                <p class="header-sub">Manage your email campaigns and sequences</p>
+            </div>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="openStartCampaignModal()">
+                    <span>+ Start New Campaign</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="campaigns-list"></div>
+
+        <!-- Start Campaign Modal -->
+        <div class="modal" id="startCampaignModal">
+            <div class="modal-content">
+                <div class="modal-header">Start Campaign Sending</div>
+                <form onsubmit="handleStartCampaign(event)">
+                    <div id="startCampaignError"></div>
+
+                    <div class="form-group">
+                        <label class="form-label">Select Campaign</label>
+                        <select class="form-input" id="campaignSelect" required>
+                            <option value="">Choose a campaign...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Sender Email</label>
+                        <input type="email" class="form-input" id="senderEmail" placeholder="your-email@company.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Sender Name (Optional)</label>
+                        <input type="text" class="form-input" id="senderName" placeholder="Your Name">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Reply-To Email (Optional)</label>
+                        <input type="email" class="form-input" id="replyToEmail" placeholder="replies@company.com">
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeStartCampaignModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Start Campaign</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sequence Builder Modal -->
+        <div class="modal" id="sequenceModal">
+            <div class="modal-content">
+                <div class="modal-header">Email Sequences</div>
+                <p class="header-sub" style="margin-bottom: 20px;">Configure multi-step sequences for each prospect</p>
+
+                <div id="sequenceError"></div>
+
+                <div class="form-group">
+                    <label class="form-label">Sequence Name</label>
+                    <input type="text" class="form-input" id="sequenceName" placeholder="e.g., 'Follow-up Sequence'">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Initial Email (Day 0)</label>
+                    <div class="form-input" style="padding: 0; border: none; background: none;">
+                        <div class="sequence-steps">
+                            <div class="sequence-step">
+                                <div class="step-number">0</div>
+                                <div class="step-content">
+                                    <div class="step-label">Sent immediately with prospect discovery</div>
+                                    <div class="step-value">Initial outreach email</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Follow-up Emails</label>
+                    <div class="sequence-steps" id="followupSteps">
+                        <div class="sequence-step">
+                            <div class="step-number">1</div>
+                            <div class="step-content" style="flex: 1;">
+                                <div class="step-label">Days after initial:</div>
+                                <input type="number" class="delay-input" value="3" min="1"> days
+                            </div>
+                        </div>
+                        <div class="sequence-step">
+                            <div class="step-number">2</div>
+                            <div class="step-content" style="flex: 1;">
+                                <div class="step-label">Days after initial:</div>
+                                <input type="number" class="delay-input" value="5" min="1"> days
+                            </div>
+                        </div>
+                        <div class="sequence-step">
+                            <div class="step-number">3</div>
+                            <div class="step-content" style="flex: 1;">
+                                <div class="step-label">Days after initial:</div>
+                                <input type="number" class="delay-input" value="7" min="1"> days
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" checked> Stop on reply (halt sequence when prospect responds)
+                    </label>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeSequenceModal()">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveSequence()">Save Sequence</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auth guard
+        (function() {
+            var token = localStorage.getItem('auth_token');
+            if (!token) { window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname); return; }
+            fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+                .then(function(r) { if (!r.ok) { localStorage.removeItem('auth_token'); localStorage.removeItem('user_email'); localStorage.removeItem('user_name'); window.location.href = '/login'; } })
+                .catch(function() {});
+        })();
+
+        let authToken = localStorage.getItem('auth_token');
+        let campaigns = [];
+
+        async function fetchCampaigns() {
+            try {
+                const response = await fetch('/api/campaigns', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                campaigns = await response.json();
+                renderCampaigns();
+                loadCampaignSelect();
+            } catch (err) {
+                console.error('Failed to fetch campaigns:', err);
+            }
+        }
+
+        function renderCampaigns() {
+            const container = document.getElementById('campaigns-list');
+
+            if (campaigns.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📧</div>
+                        <div class="empty-state-title">No campaigns yet</div>
+                        <p>Create a campaign to get started with cold outreach</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = campaigns.map(campaign => `
+                <div class="campaign-card">
+                    <div class="campaign-header">
+                        <div class="campaign-title">${campaign.name}</div>
+                        <div class="campaign-status" id="status-${campaign.id}">
+                            <span class="status-dot"></span>
+                            <span>Loading...</span>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-label">Prospects</div>
+                            <div class="stat-value">${campaign.prospect_count || 0}</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Emails Sent</div>
+                            <div class="stat-value" id="sent-${campaign.id}">—</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Pending</div>
+                            <div class="stat-value" id="pending-${campaign.id}">—</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Failed</div>
+                            <div class="stat-value" id="failed-${campaign.id}">—</div>
+                        </div>
+                    </div>
+
+                    <div class="queue-status">
+                        <h3>Queue Status</h3>
+                        <div class="queue-bars">
+                            <div class="queue-bar">
+                                <div class="queue-bar-label">Sent</div>
+                                <div class="queue-bar-fill">
+                                    <div class="queue-bar-progress" id="progress-sent-${campaign.id}" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="queue-bar">
+                                <div class="queue-bar-label">Pending</div>
+                                <div class="queue-bar-fill">
+                                    <div class="queue-bar-progress" id="progress-pending-${campaign.id}" style="width: 100%; background: var(--warning)"></div>
+                                </div>
+                            </div>
+                            <div class="queue-bar">
+                                <div class="queue-bar-label">Failed</div>
+                                <div class="queue-bar-fill">
+                                    <div class="queue-bar-progress" id="progress-failed-${campaign.id}" style="width: 0%; background: var(--error)"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="campaign-actions">
+                        <button class="btn btn-primary" id="action-btn-${campaign.id}" onclick="toggleCampaignStatus(${campaign.id})">
+                            <span id="action-text-${campaign.id}">Start Sending</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="openSequenceModal(${campaign.id})">Configure Sequences</button>
+                    </div>
+                </div>
+            `).join('');
+
+            // Load status for each campaign
+            campaigns.forEach(campaign => loadCampaignStatus(campaign.id));
+        }
+
+        async function loadCampaignStatus(campaignId) {
+            try {
+                const response = await fetch(`/api/campaigns/${campaignId}/send/status`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.status === 404) {
+                    // Campaign not started yet
+                    updateCampaignStatusUI(campaignId, 'paused', { total: 0, pending: 0, sent: 0, failed: 0 });
+                    return;
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    updateCampaignStatusUI(campaignId, data.campaign.status, data.queue);
+                }
+            } catch (err) {
+                console.error(`Failed to load campaign ${campaignId} status:`, err);
+            }
+        }
+
+        function updateCampaignStatusUI(campaignId, status, queue) {
+            const statusEl = document.getElementById(`status-${campaignId}`);
+            const statusClass = status === 'active' ? 'status-active' : 'status-paused';
+            const statusText = status === 'active' ? 'Sending' : 'Paused';
+
+            if (statusEl) {
+                statusEl.className = `campaign-status ${statusClass}`;
+                statusEl.innerHTML = `<span class="status-dot"></span><span>${statusText}</span>`;
+            }
+
+            // Update queue stats
+            const total = queue.total || 1;
+            const sent = queue.sent || 0;
+            const pending = queue.pending || 0;
+            const failed = queue.failed || 0;
+
+            document.getElementById(`sent-${campaignId}`).textContent = sent;
+            document.getElementById(`pending-${campaignId}`).textContent = pending;
+            document.getElementById(`failed-${campaignId}`).textContent = failed;
+
+            // Update progress bars
+            const sentPct = total > 0 ? (sent / total) * 100 : 0;
+            const pendingPct = total > 0 ? (pending / total) * 100 : 0;
+            const failedPct = total > 0 ? (failed / total) * 100 : 0;
+
+            document.getElementById(`progress-sent-${campaignId}`).style.width = sentPct + '%';
+            document.getElementById(`progress-pending-${campaignId}`).style.width = pendingPct + '%';
+            document.getElementById(`progress-failed-${campaignId}`).style.width = failedPct + '%';
+
+            // Update action button
+            const actionBtn = document.getElementById(`action-btn-${campaignId}`);
+            const actionText = document.getElementById(`action-text-${campaignId}`);
+            if (actionBtn) {
+                actionBtn.onclick = () => toggleCampaignStatus(campaignId, status);
+                actionText.textContent = status === 'active' ? 'Pause' : 'Resume';
+            }
+        }
+
+        async function toggleCampaignStatus(campaignId, currentStatus = 'paused') {
+            const endpoint = currentStatus === 'active' ? 'pause' : 'resume';
+            try {
+                const response = await fetch(`/api/campaigns/${campaignId}/send/${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    await loadCampaignStatus(campaignId);
+                }
+            } catch (err) {
+                alert('Failed to update campaign status');
+            }
+        }
+
+        function loadCampaignSelect() {
+            const select = document.getElementById('campaignSelect');
+            select.innerHTML = '<option value="">Choose a campaign...</option>' +
+                campaigns.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        }
+
+        function openStartCampaignModal() {
+            document.getElementById('startCampaignModal').classList.add('active');
+        }
+
+        function closeStartCampaignModal() {
+            document.getElementById('startCampaignModal').classList.remove('active');
+        }
+
+        async function handleStartCampaign(event) {
+            event.preventDefault();
+            const campaignId = document.getElementById('campaignSelect').value;
+            const senderEmail = document.getElementById('senderEmail').value;
+            const senderName = document.getElementById('senderName').value;
+            const replyToEmail = document.getElementById('replyToEmail').value;
+
+            if (!campaignId) {
+                alert('Please select a campaign');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/campaigns/${campaignId}/send/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        senderEmail,
+                        senderName: senderName || undefined,
+                        replyToEmail: replyToEmail || undefined
+                    })
+                });
+
+                if (response.ok) {
+                    closeStartCampaignModal();
+                    await loadCampaignStatus(parseInt(campaignId));
+                    alert('Campaign started! Emails will begin sending.');
+                }
+            } catch (err) {
+                alert('Failed to start campaign');
+            }
+        }
+
+        function openSequenceModal(campaignId) {
+            document.getElementById('sequenceModal').classList.add('active');
+        }
+
+        function closeSequenceModal() {
+            document.getElementById('sequenceModal').classList.remove('active');
+        }
+
+        function saveSequence() {
+            alert('Sequence templates coming soon! You can configure delays when starting a campaign.');
+        }
+
+        // Load campaigns on page load
+        if (!authToken) {
+            window.location.href = '/login.html';
+        } else {
+            fetchCampaigns();
+            // Refresh status every 30 seconds
+            setInterval(() => campaigns.forEach(c => loadCampaignStatus(c.id)), 30000);
+        }
+    </script>
+</body>
+</html>

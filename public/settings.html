@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Settings - Koldly">
+    <meta name="theme-color" content="#FF6B35">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23FF6B35' width='100' height='100' rx='20'/><text x='50' y='70' font-size='60' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial'>K</text></svg>">
+    <title>Settings - Koldly</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0A0A0A;
+            --bg-card: #141414;
+            --accent: #FF6B35;
+            --accent-glow: rgba(255, 107, 53, 0.15);
+            --text: #F5F5F5;
+            --text-muted: #888;
+            --border: #222;
+            --input-bg: #0F0F0F;
+            --input-border: #333;
+            --success: #10B981;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* Top Navigation Bar */
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            min-width: 44px;
+            min-height: 44px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: rgba(255, 107, 53, 0.3);
+            line-height: 1;
+            border-radius: 6px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .menu-toggle:active {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 998;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        .topbar-logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        /* Main Layout */
+        .main-layout {
+            display: flex;
+            gap: 0;
+        }
+
+        .sidebar {
+            width: 240px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 20px 0;
+            max-height: calc(100vh - 60px);
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 0 12px 16px 12px;
+        }
+
+        .sidebar-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 12px 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 12px;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .sidebar-item:hover {
+            background: var(--bg-card-hover);
+            color: var(--text);
+        }
+
+        .sidebar-item.active {
+            background: var(--accent-glow);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* Content Area */
+        .content {
+            flex: 1;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            overflow-y: auto;
+            max-height: calc(100vh - 60px);
+        }
+
+        .header {
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: var(--text-muted);
+        }
+
+        /* Settings Section */
+        .settings-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        .settings-section h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .setting-item {
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .setting-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: block;
+            color: var(--text);
+        }
+
+        .setting-description {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        input[type="email"],
+        input[type="text"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.25);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(255, 107, 53, 0.35);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: rgba(16, 185, 129, 0.1);
+            color: #6EE7B7;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .menu-toggle {
+                display: block;
+            }
+
+            .sidebar {
+                display: none;
+                position: fixed;
+                left: 0;
+                top: 60px;
+                width: 200px;
+                height: calc(100vh - 60px);
+                z-index: 999;
+            }
+
+            .sidebar.active {
+                display: block;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .settings-section {
+                padding: 20px;
+            }
+        }
+    </style>
+    <script src="/js/notifications.js"></script>
+    <script src="/js/error-handler.js"></script>
+    <script src="/js/skeletons.js"></script>
+    <script src="/js/modals.js"></script>
+    <script src="/js/forms.js"></script>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            <a href="/" class="topbar-logo">Koldly</a>
+        </div>
+    </div>
+
+    <!-- Sidebar overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-item" onclick="navigateTo('/dashboard')">
+                    <span style="font-size: 18px;">📊</span>
+                    <span>Dashboard</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/campaigns')">
+                    <span style="font-size: 18px;">📧</span>
+                    <span>Campaigns</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/analytics')">
+                    <span style="font-size: 18px;">📈</span>
+                    <span>Analytics</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/integrations')">
+                    <span style="font-size: 18px;">🔗</span>
+                    <span>Integrations</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">Settings</div>
+                <div class="sidebar-item active" onclick="navigateTo('/settings')">
+                    <span style="font-size: 18px;">⚙️</span>
+                    <span>Settings</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/billing')">
+                    <span style="font-size: 18px;">💳</span>
+                    <span>Billing</span>
+                </div>
+                <div class="sidebar-item" onclick="logout()">
+                    <span style="font-size: 18px;">🚪</span>
+                    <span>Logout</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="content">
+            <div class="header">
+                <h1>Settings & Profile</h1>
+                <p>Manage your account preferences and integrations</p>
+            </div>
+
+            <!-- Account Settings -->
+            <div class="settings-section">
+                <h2>👤 Account Information</h2>
+
+                <div class="setting-item">
+                    <label class="setting-label">Email Address</label>
+                    <input type="email" value="founder@company.com" disabled>
+                </div>
+
+                <div class="setting-item">
+                    <label class="setting-label">Full Name</label>
+                    <input type="text" value="Founder Name" placeholder="Your name">
+                </div>
+
+                <div class="setting-item">
+                    <label class="setting-label">Company Name</label>
+                    <input type="text" value="Your Company" placeholder="Company name">
+                </div>
+            </div>
+
+            <!-- Email Settings -->
+            <div class="settings-section">
+                <h2>📧 Email Configuration</h2>
+
+                <div class="setting-item">
+                    <label class="setting-label">From Email Address</label>
+                    <div class="setting-description">Emails will be sent from this address</div>
+                    <input type="email" value="hello@company.com" placeholder="from@company.com">
+                </div>
+
+                <div class="setting-item">
+                    <label class="setting-label">Email Warm-up Status</label>
+                    <div class="status-badge">✓ Active - 50 emails/day</div>
+                    <p style="color: var(--text-muted); font-size: 13px; margin-top: 8px;">Gradually increasing sending limits to improve deliverability. Currently at 50 emails per day.</p>
+                </div>
+            </div>
+
+            <!-- Email Integration Status -->
+            <div class="settings-section">
+                <h2>🔗 Connected Services</h2>
+
+                <div class="setting-item">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <label class="setting-label">Gmail Account</label>
+                            <div class="status-badge">✓ Connected</div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="alert('Reconnect Gmail')">Reconnect</button>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <label class="setting-label">LinkedIn Profile</label>
+                            <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">Used for prospect research</p>
+                        </div>
+                        <button class="btn btn-secondary" onclick="alert('Connect LinkedIn')">Connect</button>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <label class="setting-label">CRM Integration</label>
+                            <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">Sync prospects and replies with your CRM</p>
+                        </div>
+                        <button class="btn btn-secondary" onclick="navigateTo('/integrations')">Configure</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preferences -->
+            <div class="settings-section">
+                <h2>⚙️ Preferences</h2>
+
+                <div class="setting-item">
+                    <label class="setting-label">
+                        <input type="checkbox" checked style="width: auto; margin-right: 8px; cursor: pointer;">
+                        Email me about campaign updates
+                    </label>
+                </div>
+
+                <div class="setting-item">
+                    <label class="setting-label">
+                        <input type="checkbox" checked style="width: auto; margin-right: 8px; cursor: pointer;">
+                        Email me about new features
+                    </label>
+                </div>
+
+                <div class="setting-item">
+                    <label class="setting-label">
+                        <input type="checkbox" style="width: auto; margin-right: 8px; cursor: pointer;">
+                        Show activity notifications
+                    </label>
+                </div>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="settings-section" style="border-color: rgba(239, 68, 68, 0.3);">
+                <h2 style="color: #FCA5A5;">⚠️ Danger Zone</h2>
+
+                <div class="setting-item">
+                    <label class="setting-label">Change Password</label>
+                    <button class="btn btn-secondary" onclick="alert('Password change would open a dialog')">Update Password</button>
+                </div>
+
+                <div class="setting-item">
+                    <label class="setting-label">Delete Account</label>
+                    <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 12px;">Permanently delete your account and all associated data. This cannot be undone.</p>
+                    <button class="btn btn-secondary" onclick="alert('Account deletion requires confirmation')">Delete Account</button>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <div style="margin-top: 32px;">
+                <button class="btn btn-primary" onclick="alert('Settings saved!')">Save Changes</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Auth guard — redirect to login if no token
+        (function() {
+            var token = localStorage.getItem('auth_token');
+            if (!token) { window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname); return; }
+            fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+                .then(function(r) { if (!r.ok) { localStorage.removeItem('auth_token'); localStorage.removeItem('user_email'); localStorage.removeItem('user_name'); window.location.href = '/login'; } })
+                .catch(function() {});
+        })();
+
+        // Shared nav functions — iOS-compatible touch handling
+        (function() {
+            var sidebar = document.getElementById('sidebar');
+            var overlay = document.getElementById('sidebarOverlay');
+            var menuBtn = document.querySelector('.menu-toggle');
+
+            function openClose() {
+                var isOpen = sidebar.classList.toggle('active');
+                if (overlay) overlay.classList.toggle('active', isOpen);
+            }
+
+            window.toggleSidebar = openClose;
+
+            if (menuBtn) {
+                menuBtn.addEventListener('touchend', function(e) { e.preventDefault(); openClose(); });
+            }
+
+            if (overlay) {
+                overlay.addEventListener('touchend', function(e) { e.preventDefault(); sidebar.classList.remove('active'); overlay.classList.remove('active'); });
+                overlay.addEventListener('click', function() { sidebar.classList.remove('active'); overlay.classList.remove('active'); });
+            }
+
+            document.querySelectorAll('.sidebar-item').forEach(function(item) {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth < 768) { sidebar.classList.remove('active'); if (overlay) overlay.classList.remove('active'); }
+                });
+            });
+        })();
+
+        function navigateTo(path) { window.location.href = path; }
+        function logout() { localStorage.removeItem('auth_token'); localStorage.removeItem('user_email'); localStorage.removeItem('user_name'); window.location.href = '/'; }
+    </script>
+</body>
+</html>

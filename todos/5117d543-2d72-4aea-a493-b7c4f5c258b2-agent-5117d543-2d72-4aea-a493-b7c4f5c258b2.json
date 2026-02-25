@@ -1,0 +1,22 @@
+[
+  {
+    "content": "Fix hamburger CSS across all 5 pages (tap target + touch-action)",
+    "status": "completed",
+    "activeForm": "Fixing hamburger CSS across all pages"
+  },
+  {
+    "content": "Add touch event listeners for reliable iOS handling",
+    "status": "completed",
+    "activeForm": "Adding touch event listeners"
+  },
+  {
+    "content": "Add sidebar overlay for close-on-tap-outside",
+    "status": "completed",
+    "activeForm": "Adding sidebar overlay"
+  },
+  {
+    "content": "Push, deploy, verify",
+    "status": "in_progress",
+    "activeForm": "Deploying and verifying fix"
+  }
+]

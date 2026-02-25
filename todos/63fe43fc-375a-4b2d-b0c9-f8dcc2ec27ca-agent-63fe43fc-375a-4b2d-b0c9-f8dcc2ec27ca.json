@@ -1,0 +1,37 @@
+[
+  {
+    "content": "Implement dashboard enhancements (stats, activity feed, quick actions)",
+    "status": "completed",
+    "activeForm": "Dashboard enhanced"
+  },
+  {
+    "content": "Create navigation sidebar component (shared across pages)",
+    "status": "completed",
+    "activeForm": "Sidebar created"
+  },
+  {
+    "content": "Add settings/profile page",
+    "status": "completed",
+    "activeForm": "Settings page added"
+  },
+  {
+    "content": "Enhance onboarding flow with better CTAs",
+    "status": "pending",
+    "activeForm": "Enhancing onboarding"
+  },
+  {
+    "content": "Add loading skeletons and micro-interactions",
+    "status": "pending",
+    "activeForm": "Adding loading states"
+  },
+  {
+    "content": "Configure koldly.com custom domain in Render",
+    "status": "in_progress",
+    "activeForm": "Configuring custom domain"
+  },
+  {
+    "content": "Update app URLs to use koldly.com",
+    "status": "pending",
+    "activeForm": "Updating URLs"
+  }
+]

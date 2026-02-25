@@ -1,0 +1,27 @@
+[
+  {
+    "content": "Investigate email code paths for ReachKit/DealForge references",
+    "status": "completed",
+    "activeForm": "Investigating email code for old branding"
+  },
+  {
+    "content": "Fix POLSIA_ANALYTICS_SLUG env var (reachkit → koldly)",
+    "status": "completed",
+    "activeForm": "Fixing POLSIA_ANALYTICS_SLUG env var"
+  },
+  {
+    "content": "Do full codebase sweep for any remaining old brand references",
+    "status": "completed",
+    "activeForm": "Sweeping codebase for old branding"
+  },
+  {
+    "content": "Deploy and verify the fix",
+    "status": "in_progress",
+    "activeForm": "Deploying and verifying fix"
+  },
+  {
+    "content": "Notify owner of completion",
+    "status": "pending",
+    "activeForm": "Notifying owner"
+  }
+]

@@ -1,0 +1,17 @@
+[
+  {
+    "content": "Add campaign CRUD API endpoints (GET list, POST create, duplicate, archive, unarchive, DELETE)",
+    "status": "completed",
+    "activeForm": "Adding campaign CRUD API endpoints"
+  },
+  {
+    "content": "Add ICP template endpoints (GET list, POST create)",
+    "status": "completed",
+    "activeForm": "Adding ICP template endpoints"
+  },
+  {
+    "content": "Deploy and verify fix",
+    "status": "in_progress",
+    "activeForm": "Deploying and verifying fix"
+  }
+]

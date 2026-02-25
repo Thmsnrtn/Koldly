@@ -1,0 +1,22 @@
+[
+  {
+    "content": "Investigate root cause of missing GOOGLE_OAUTH_CLIENT_ID env var",
+    "status": "completed",
+    "activeForm": "Investigating missing Google OAuth env vars"
+  },
+  {
+    "content": "Check production env vars on Render instance",
+    "status": "completed",
+    "activeForm": "Checking production environment variables"
+  },
+  {
+    "content": "Fix the issue and deploy",
+    "status": "in_progress",
+    "activeForm": "Fixing and deploying the OAuth fix"
+  },
+  {
+    "content": "Verify Google OAuth flow works",
+    "status": "pending",
+    "activeForm": "Verifying Google OAuth flow"
+  }
+]

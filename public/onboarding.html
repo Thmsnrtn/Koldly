@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Onboarding - Koldly</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #0A0A0A;
+      --bg-card: #141414;
+      --bg-card-hover: #1A1A1A;
+      --accent: #FF6B35;
+      --accent-glow: rgba(255, 107, 53, 0.15);
+      --text: #F5F5F5;
+      --text-muted: #888;
+      --border: #222;
+      --input-bg: #0F0F0F;
+      --input-border: #333;
+      --success: #10B981;
+      --error: #EF4444;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 600px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .wizard-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 48px 40px;
+      transition: all 0.2s ease;
+    }
+
+    .wizard-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .wizard-logo {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, var(--accent) 0%, #FF8A50 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      font-weight: 700;
+      color: white;
+      margin: 0 auto 24px;
+      box-shadow: 0 8px 20px var(--accent-glow);
+    }
+
+    .wizard-header h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .wizard-header p {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .step-indicator {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+    }
+
+    .step-indicator .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+    }
+
+    .step-indicator .step-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      margin-bottom: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .step-indicator .step.active .step-number {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .step-indicator .step.completed .step-number {
+      background: var(--success);
+      color: white;
+      border-color: var(--success);
+    }
+
+    .step-indicator .step-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .step-indicator .step.active .step-label {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .step-indicator .step.completed .step-label {
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    .step-connector {
+      flex: 1;
+      height: 2px;
+      background: var(--border);
+      margin: 0 -8px;
+      margin-top: 20px;
+    }
+
+    .step-connector.active {
+      background: var(--accent);
+    }
+
+    .step-content {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .step-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="url"],
+    textarea {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    input[type="url"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .form-helper {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .form-helper a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .form-helper a:hover {
+      text-decoration: underline;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .btn {
+      padding: 12px 32px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px var(--accent-glow);
+    }
+
+    .btn-secondary {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      width: 48%;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      margin-top: 32px;
+    }
+
+    .success-message {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid var(--success);
+      color: var(--success);
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .step-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .step-description {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    @media (max-width: 600px) {
+      .wizard-card {
+        padding: 32px 24px;
+      }
+
+      .step-indicator {
+        margin-bottom: 32px;
+      }
+
+      .step-indicator .step-label {
+        display: none;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+
+      .btn-secondary {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="wizard-card">
+      <!-- Header -->
+      <div class="wizard-header">
+        <div class="wizard-logo">K</div>
+        <h1>Welcome to Koldly</h1>
+        <p>Set up your first campaign in minutes</p>
+      </div>
+
+      <!-- Step Indicator -->
+      <div class="step-indicator">
+        <div class="step active" data-step="1">
+          <div class="step-number">1</div>
+          <div class="step-label">Company</div>
+        </div>
+        <div class="step-connector active"></div>
+        <div class="step" data-step="2">
+          <div class="step-number">2</div>
+          <div class="step-label">Industry</div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step" data-step="3">
+          <div class="step-number">3</div>
+          <div class="step-label">Message</div>
+        </div>
+      </div>
+
+      <!-- Step 1: Company Info -->
+      <div class="step-content active" data-step="1">
+        <div class="step-title">Tell us about your target</div>
+        <p class="step-description">Who are you reaching out to?</p>
+
+        <form id="step1Form">
+          <div class="form-group">
+            <label for="targetCompany">Target Company Name</label>
+            <input type="text" id="targetCompany" placeholder="e.g., Acme Corp" required>
+            <p class="form-helper">The company you want to target with your campaign</p>
+          </div>
+
+          <div class="form-group">
+            <label for="targetRole">Decision Maker Role</label>
+            <input type="text" id="targetRole" placeholder="e.g., VP of Marketing" required>
+            <p class="form-helper">The specific job title you're targeting</p>
+          </div>
+
+          <div class="form-group">
+            <label for="targetEmail">Target Email (optional)</label>
+            <input type="email" id="targetEmail" placeholder="e.g., john@acme.com">
+            <p class="form-helper">If you have a specific contact in mind</p>
+          </div>
+
+          <div class="button-group">
+            <button type="button" class="btn btn-primary" onclick="nextStep(2)">Continue</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Step 2: Industry -->
+      <div class="step-content" data-step="2">
+        <div class="step-title">What's their industry?</div>
+        <p class="step-description">This helps us research and personalize better</p>
+
+        <form id="step2Form">
+          <div class="form-group">
+            <label for="industry">Industry Vertical</label>
+            <input type="text" id="industry" placeholder="e.g., SaaS, Tech, Healthcare" required>
+            <p class="form-helper">The industry or sector</p>
+          </div>
+
+          <div class="form-group">
+            <label for="companySize">Company Size (optional)</label>
+            <input type="text" id="companySize" placeholder="e.g., 100-500 employees">
+          </div>
+
+          <div class="form-group">
+            <label for="location">Location (optional)</label>
+            <input type="text" id="location" placeholder="e.g., San Francisco, CA">
+          </div>
+
+          <div class="button-group">
+            <button type="button" class="btn btn-secondary" onclick="prevStep(1)">← Back</button>
+            <button type="button" class="btn btn-primary" onclick="nextStep(3)" style="width: 48%;">Continue</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Step 3: Message -->
+      <div class="step-content" data-step="3">
+        <div class="step-title">Craft your message</div>
+        <p class="step-description">What's your value proposition?</p>
+
+        <form id="step3Form">
+          <div class="form-group">
+            <label for="value">Your Value Prop</label>
+            <textarea id="value" placeholder="What specific problem do you solve? Be concise..." required></textarea>
+            <p class="form-helper">What problem do you solve for them?</p>
+          </div>
+
+          <div class="form-group">
+            <label for="result">Expected Outcome (optional)</label>
+            <textarea id="result" placeholder="e.g., 30% increase in conversions, reduced churn"></textarea>
+            <p class="form-helper">What should they expect if they work with you?</p>
+          </div>
+
+          <div class="form-group">
+            <label for="cta">Call to Action</label>
+            <input type="text" id="cta" placeholder="e.g., Schedule a 15-min call" required>
+            <p class="form-helper">What do you want them to do?</p>
+          </div>
+
+          <div class="button-group">
+            <button type="button" class="btn btn-secondary" onclick="prevStep(2)">← Back</button>
+            <button type="button" class="btn btn-primary" onclick="submitOnboarding()" style="width: 48%;">Create Campaign</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Success State -->
+      <div class="step-content" data-step="success">
+        <div class="success-message">
+          ✓ Campaign created successfully!
+        </div>
+        <div style="text-align: center; margin: 40px 0;">
+          <div class="step-title">🎉 You're all set!</div>
+          <p class="step-description">Your first campaign is ready to go</p>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="window.location.href='/dashboard'">
+          Go to Dashboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentStep = 1;
+
+    function nextStep(step) {
+      if (step === 2 && !validateStep1()) return;
+      if (step === 3 && !validateStep2()) return;
+
+      currentStep = step;
+      updateStepUI();
+    }
+
+    function prevStep(step) {
+      currentStep = step;
+      updateStepUI();
+    }
+
+    function updateStepUI() {
+      // Update content
+      document.querySelectorAll('.step-content').forEach(el => {
+        el.classList.remove('active');
+      });
+      document.querySelector(`[data-step="${currentStep}"].step-content`)?.classList.add('active');
+
+      // Update indicator
+      document.querySelectorAll('.step').forEach((el, idx) => {
+        const stepNum = idx + 1;
+        el.classList.remove('active', 'completed');
+
+        if (stepNum === currentStep) {
+          el.classList.add('active');
+        } else if (stepNum < currentStep) {
+          el.classList.add('completed');
+        }
+      });
+
+      // Update connectors
+      document.querySelectorAll('.step-connector').forEach((el, idx) => {
+        if (idx + 1 < currentStep) {
+          el.classList.add('active');
+        } else {
+          el.classList.remove('active');
+        }
+      });
+    }
+
+    function validateStep1() {
+      const target = document.getElementById('targetCompany').value;
+      const role = document.getElementById('targetRole').value;
+
+      if (!target || !role) {
+        alert('Please fill in the required fields');
+        return false;
+      }
+      return true;
+    }
+
+    function validateStep2() {
+      const industry = document.getElementById('industry').value;
+      if (!industry) {
+        alert('Please select an industry');
+        return false;
+      }
+      return true;
+    }
+
+    async function submitOnboarding() {
+      if (!validateStep2()) return;
+
+      const valueProp = document.getElementById('value').value;
+      const cta = document.getElementById('cta').value;
+
+      if (!valueProp || !cta) {
+        alert('Please fill in the required fields');
+        return false;
+      }
+
+      try {
+        const response = await fetch('/api/campaigns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: document.getElementById('targetCompany').value,
+            description: document.getElementById('value').value,
+            target_role: document.getElementById('targetRole').value,
+            industry: document.getElementById('industry').value,
+            company_size: document.getElementById('companySize').value || null,
+            location: document.getElementById('location').value || null,
+            expected_outcome: document.getElementById('result').value || null,
+            cta: document.getElementById('cta').value
+          })
+        });
+
+        if (response.ok) {
+          currentStep = 'success';
+          updateStepUI();
+        } else {
+          const error = await response.json();
+          alert('Error: ' + (error.error || 'Failed to create campaign'));
+        }
+      } catch (err) {
+        console.error('Submission error:', err);
+        alert('Network error: ' + err.message);
+      }
+    }
+
+    // Initialize
+    updateStepUI();
+  </script>
+</body>
+</html>

@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Manage your AI-powered cold email campaigns - Koldly">
+    <meta name="theme-color" content="#FF6B35">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23FF6B35' width='100' height='100' rx='20'/><text x='50' y='70' font-size='60' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial'>K</text></svg>">
+    <title>Campaigns - Koldly</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0A0A0A;
+            --bg-card: #141414;
+            --bg-card-hover: #1A1A1A;
+            --accent: #FF6B35;
+            --accent-glow: rgba(255, 107, 53, 0.15);
+            --text: #F5F5F5;
+            --text-muted: #888;
+            --border: #222;
+            --input-bg: #0F0F0F;
+            --input-border: #333;
+            --success: #10B981;
+            --error: #EF4444;
+            --warning: #F59E0B;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ====== SHARED NAV: Top Bar ====== */
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .topbar-left { display: flex; align-items: center; gap: 16px; }
+        .menu-toggle { display: none; background: none; border: none; color: var(--text); font-size: 24px; cursor: pointer; padding: 8px 12px; min-width: 44px; min-height: 44px; touch-action: manipulation; -webkit-tap-highlight-color: rgba(255, 107, 53, 0.3); line-height: 1; border-radius: 6px; position: relative; z-index: 10; }
+        .menu-toggle:active { background: rgba(255, 255, 255, 0.1); }
+        .sidebar-overlay { display: none; position: fixed; top: 60px; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 998; }
+        .sidebar-overlay.active { display: block; }
+        .topbar-logo { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; color: var(--accent); text-decoration: none; }
+        .topbar-right { display: flex; align-items: center; gap: 16px; }
+        .user-avatar { width: 36px; height: 36px; border-radius: 8px; background: var(--accent-glow); border: 1px solid var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+
+        /* ====== SHARED NAV: Sidebar ====== */
+        .main-layout { display: flex; gap: 0; }
+        .sidebar { width: 240px; background: var(--bg-card); border-right: 1px solid var(--border); padding: 20px 0; max-height: calc(100vh - 60px); overflow-y: auto; position: sticky; top: 60px; }
+        .sidebar-section { padding: 0 12px 16px 12px; }
+        .sidebar-title { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; padding: 12px 12px; letter-spacing: 0.5px; }
+        .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 12px 12px; color: var(--text-muted); text-decoration: none; border-radius: 8px; transition: all 0.2s ease; cursor: pointer; font-size: 14px; }
+        .sidebar-item:hover { background: var(--bg-card-hover); color: var(--text); }
+        .sidebar-item.active { background: var(--accent-glow); color: var(--accent); font-weight: 600; }
+        .sidebar-icon { font-size: 18px; width: 24px; }
+
+        /* ====== Content Area ====== */
+        .content {
+            flex: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            overflow-y: auto;
+            max-height: calc(100vh - 60px);
+        }
+
+        /* ====== Page-specific styles ====== */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 32px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab:hover { color: var(--text); }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px var(--accent-glow); }
+        .btn-secondary { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--bg-card-hover); }
+        .btn-small { padding: 6px 12px; font-size: 13px; }
+
+        .campaigns-grid { display: grid; gap: 20px; }
+
+        .campaign-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.2s ease;
+        }
+        .campaign-card:hover { border-color: var(--accent); box-shadow: 0 4px 20px var(--accent-glow); }
+
+        .campaign-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+        .campaign-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+        .campaign-date { font-size: 13px; color: var(--text-muted); }
+        .campaign-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .campaign-description { color: var(--text-muted); font-size: 14px; margin-bottom: 16px; line-height: 1.5; }
+
+        .campaign-stats { display: flex; gap: 24px; padding: 16px 0; border-top: 1px solid var(--border); }
+        .stat { display: flex; flex-direction: column; }
+        .stat-value { font-size: 24px; font-weight: 700; color: var(--accent); }
+        .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .modal-title { font-size: 24px; font-weight: 700; }
+        .close-btn { background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
+        .close-btn:hover { background: var(--bg); color: var(--text); }
+
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+        input, textarea, select { width: 100%; padding: 12px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 8px; color: var(--text); font-size: 14px; font-family: inherit; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+        textarea { min-height: 120px; resize: vertical; }
+
+        .template-list { display: grid; gap: 12px; margin-top: 12px; }
+        .template-item { padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s ease; }
+        .template-item:hover { border-color: var(--accent); }
+        .template-item.selected { border-color: var(--accent); background: var(--accent-glow); }
+        .template-name { font-weight: 600; margin-bottom: 4px; }
+        .template-description { font-size: 13px; color: var(--text-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+        .empty-state { text-align: center; padding: 80px 20px; color: var(--text-muted); }
+        .empty-state-icon { font-size: 48px; margin-bottom: 16px; }
+        .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-archived { background: var(--warning); color: var(--bg); }
+        .action-buttons { display: flex; gap: 12px; margin-top: 24px; }
+
+        /* ====== Responsive ====== */
+        @media (max-width: 1024px) {
+            .sidebar { width: 200px; padding: 16px 0; }
+            .content { padding: 24px 16px; }
+        }
+
+        @media (max-width: 768px) {
+            .menu-toggle { display: block; }
+            .sidebar { display: none; position: fixed; left: 0; top: 60px; width: 200px; height: calc(100vh - 60px); z-index: 999; }
+            .sidebar.active { display: block; }
+            .header h1 { font-size: 24px; }
+            .content { padding: 20px 12px; }
+            .campaign-header { flex-direction: column; gap: 12px; }
+            .campaign-actions { flex-wrap: wrap; }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 { font-size: 20px; }
+            .content { padding: 16px 12px; }
+            .header { flex-direction: column; gap: 12px; align-items: flex-start; }
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    </style>
+    <script src="/js/notifications.js"></script>
+    <script src="/js/error-handler.js"></script>
+    <script src="/js/skeletons.js"></script>
+    <script src="/js/modals.js"></script>
+    <script src="/js/forms.js"></script>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            <a href="/" class="topbar-logo">Koldly</a>
+        </div>
+        <div class="topbar-right">
+            <div class="user-avatar" onclick="navigateTo('/settings')">👤</div>
+        </div>
+    </div>
+
+    <!-- Sidebar overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-item" onclick="navigateTo('/dashboard')">
+                    <span class="sidebar-icon">📊</span>
+                    <span>Dashboard</span>
+                </div>
+                <div class="sidebar-item active" onclick="navigateTo('/campaigns')">
+                    <span class="sidebar-icon">📧</span>
+                    <span>Campaigns</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/analytics')">
+                    <span class="sidebar-icon">📈</span>
+                    <span>Analytics</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/integrations')">
+                    <span class="sidebar-icon">🔗</span>
+                    <span>Integrations</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">Settings</div>
+                <div class="sidebar-item" onclick="navigateTo('/settings')">
+                    <span class="sidebar-icon">⚙️</span>
+                    <span>Settings</span>
+                </div>
+                <div class="sidebar-item" onclick="logout()">
+                    <span class="sidebar-icon">🚪</span>
+                    <span>Logout</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="content">
+            <div class="header">
+                <h1>Campaigns</h1>
+                <button class="btn btn-primary" onclick="showNewCampaignModal()">+ New Campaign</button>
+            </div>
+
+            <div class="tabs">
+                <button class="tab active" data-status="active" onclick="switchTab('active')">Active</button>
+                <button class="tab" data-status="archived" onclick="switchTab('archived')">Archived</button>
+                <button class="tab" data-status="all" onclick="switchTab('all')">All</button>
+            </div>
+
+            <div id="campaigns-container" class="campaigns-grid">
+                <div class="loading">Loading campaigns...</div>
+            </div>
+        </main>
+    </div>
+
+    <!-- New Campaign Modal -->
+    <div id="newCampaignModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Create New Campaign</h2>
+                <button class="close-btn" onclick="closeNewCampaignModal()">&times;</button>
+            </div>
+            <form id="newCampaignForm">
+                <div class="form-group">
+                    <label for="campaignName">Campaign Name</label>
+                    <input type="text" id="campaignName" placeholder="e.g., Q1 Outbound Campaign" required>
+                </div>
+                <div class="form-group">
+                    <label for="productDescription">Product/Service Description</label>
+                    <textarea id="productDescription" placeholder="Describe what you're selling and its key benefits..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Ideal Customer Profile (ICP)</label>
+                    <select id="icpSource" onchange="toggleIcpInput()">
+                        <option value="custom">Write custom ICP</option>
+                        <option value="template">Use saved template</option>
+                    </select>
+                </div>
+                <div id="customIcpSection" class="form-group">
+                    <textarea id="icpDescription" placeholder="Describe your ideal customer profile..."></textarea>
+                    <button type="button" class="btn btn-secondary btn-small" onclick="saveAsTemplate()" style="margin-top: 8px;">Save as Template</button>
+                </div>
+                <div id="templateSection" class="form-group" style="display: none;">
+                    <div id="templateList" class="template-list">
+                        <div class="loading">Loading templates...</div>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button type="submit" class="btn btn-primary">Create Campaign</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeNewCampaignModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Duplicate Modal -->
+    <div id="duplicateModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Duplicate Campaign</h2>
+                <button class="close-btn" onclick="closeDuplicateModal()">&times;</button>
+            </div>
+            <form id="duplicateForm">
+                <div class="form-group">
+                    <label for="duplicateName">New Campaign Name</label>
+                    <input type="text" id="duplicateName" required>
+                </div>
+                <div class="action-buttons">
+                    <button type="submit" class="btn btn-primary">Duplicate</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeDuplicateModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Auth guard — redirect to login if no token
+        (function() {
+            var token = localStorage.getItem('auth_token');
+            if (!token) { window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname); return; }
+            fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+                .then(function(r) { if (!r.ok) { localStorage.removeItem('auth_token'); localStorage.removeItem('user_email'); localStorage.removeItem('user_name'); window.location.href = '/login'; } })
+                .catch(function() {});
+        })();
+
+        // Shared nav functions — iOS-compatible touch handling
+        (function() {
+            var sidebar = document.getElementById('sidebar');
+            var overlay = document.getElementById('sidebarOverlay');
+            var menuBtn = document.querySelector('.menu-toggle');
+
+            function openClose() {
+                var isOpen = sidebar.classList.toggle('active');
+                if (overlay) overlay.classList.toggle('active', isOpen);
+            }
+
+            window.toggleSidebar = openClose;
+
+            if (menuBtn) {
+                menuBtn.addEventListener('touchend', function(e) { e.preventDefault(); openClose(); });
+            }
+
+            if (overlay) {
+                overlay.addEventListener('touchend', function(e) { e.preventDefault(); sidebar.classList.remove('active'); overlay.classList.remove('active'); });
+                overlay.addEventListener('click', function() { sidebar.classList.remove('active'); overlay.classList.remove('active'); });
+            }
+
+            document.querySelectorAll('.sidebar-item').forEach(function(item) {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth < 768) { sidebar.classList.remove('active'); if (overlay) overlay.classList.remove('active'); }
+                });
+            });
+        })();
+        function navigateTo(path) { window.location.href = path; }
+        function logout() { localStorage.removeItem('auth_token'); localStorage.removeItem('user_email'); localStorage.removeItem('user_name'); window.location.href = '/'; }
+
+        // Auth headers for API calls
+        function getAuthHeaders() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) { window.location.href = '/login'; return {}; }
+            return { 'Authorization': `Bearer ${token}` };
+        }
+
+        let currentStatus = 'active';
+        let campaigns = [];
+        let templates = [];
+        let selectedTemplateId = null;
+        let duplicateCampaignId = null;
+
+        async function loadCampaigns(status = 'active') {
+            try {
+                const response = await fetch(`/api/campaigns?status=${status}`, { headers: getAuthHeaders() });
+                const data = await response.json();
+                campaigns = data.campaigns;
+                renderCampaigns();
+            } catch (err) {
+                console.error('Failed to load campaigns:', err);
+                document.getElementById('campaigns-container').innerHTML = `
+                    <div class="empty-state"><div class="empty-state-icon">❌</div><p>Failed to load campaigns</p></div>`;
+            }
+        }
+
+        async function loadTemplates() {
+            try {
+                const response = await fetch('/api/icp-templates', { headers: getAuthHeaders() });
+                const data = await response.json();
+                templates = data.templates;
+                renderTemplates();
+            } catch (err) { console.error('Failed to load templates:', err); }
+        }
+
+        function renderTemplates() {
+            const container = document.getElementById('templateList');
+            if (templates.length === 0) {
+                container.innerHTML = `<div class="empty-state"><p>No saved templates yet</p></div>`;
+                return;
+            }
+            container.innerHTML = templates.map(template => `
+                <div class="template-item ${selectedTemplateId === template.id ? 'selected' : ''}" onclick="selectTemplate(${template.id})">
+                    <div class="template-name">${template.name}</div>
+                    <div class="template-description">${template.icp_description}</div>
+                </div>
+            `).join('');
+        }
+
+        function selectTemplate(id) { selectedTemplateId = id; renderTemplates(); }
+
+        function renderCampaigns() {
+            const container = document.getElementById('campaigns-container');
+            if (campaigns.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <h2>No campaigns yet</h2>
+                        <p>Create your first campaign to get started</p>
+                        <button class="btn btn-primary" onclick="showNewCampaignModal()" style="margin-top: 20px;">+ Create Campaign</button>
+                    </div>`;
+                return;
+            }
+            container.innerHTML = campaigns.map(campaign => `
+                <div class="campaign-card">
+                    <div class="campaign-header">
+                        <div>
+                            <h3 class="campaign-title">
+                                ${campaign.name}
+                                ${campaign.is_archived ? '<span class="badge badge-archived">Archived</span>' : ''}
+                            </h3>
+                            <p class="campaign-date">Created ${new Date(campaign.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <div class="campaign-actions">
+                            <button class="btn btn-secondary btn-small" onclick="window.location.href='/dashboard?campaign_id=${campaign.id}'">View</button>
+                            <button class="btn btn-secondary btn-small" onclick="showDuplicateModal(${campaign.id}, '${campaign.name}')">Duplicate</button>
+                            ${campaign.is_archived ?
+                                `<button class="btn btn-secondary btn-small" onclick="unarchiveCampaign(${campaign.id})">Restore</button>` :
+                                `<button class="btn btn-secondary btn-small" onclick="archiveCampaign(${campaign.id})">Archive</button>`}
+                            <button class="btn btn-secondary btn-small" onclick="deleteCampaign(${campaign.id}, '${campaign.name}')" style="color: var(--error);">Delete</button>
+                        </div>
+                    </div>
+                    <p class="campaign-description">${campaign.description || 'No description'}</p>
+                    <div class="campaign-stats">
+                        <div class="stat"><div class="stat-value">${campaign.stats?.total_prospects || 0}</div><div class="stat-label">Prospects</div></div>
+                        <div class="stat"><div class="stat-value">${campaign.stats?.total_emails || 0}</div><div class="stat-label">Emails</div></div>
+                        <div class="stat"><div class="stat-value">${campaign.stats?.emails_sent || 0}</div><div class="stat-label">Sent</div></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function switchTab(status) {
+            currentStatus = status;
+            document.querySelectorAll('.tab').forEach(tab => { tab.classList.toggle('active', tab.dataset.status === status); });
+            loadCampaigns(status);
+        }
+
+        function showNewCampaignModal() { document.getElementById('newCampaignModal').classList.add('active'); loadTemplates(); }
+        function closeNewCampaignModal() { document.getElementById('newCampaignModal').classList.remove('active'); document.getElementById('newCampaignForm').reset(); selectedTemplateId = null; }
+
+        function toggleIcpInput() {
+            const source = document.getElementById('icpSource').value;
+            document.getElementById('customIcpSection').style.display = source === 'custom' ? 'block' : 'none';
+            document.getElementById('templateSection').style.display = source === 'template' ? 'block' : 'none';
+        }
+
+        async function saveAsTemplate() {
+            const name = prompt('Template name:');
+            if (!name) return;
+            const icpDescription = document.getElementById('icpDescription').value;
+            if (!icpDescription) { alert('Please write an ICP description first'); return; }
+            try {
+                const response = await fetch('/api/icp-templates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    body: JSON.stringify({ name, icp_description: icpDescription })
+                });
+                if (response.ok) { alert('Template saved!'); await loadTemplates(); }
+                else { alert('Failed to save template'); }
+            } catch (err) { console.error('Save template error:', err); alert('Failed to save template'); }
+        }
+
+        document.getElementById('newCampaignForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('campaignName').value;
+            const description = document.getElementById('productDescription').value;
+            const icpSource = document.getElementById('icpSource').value;
+            let body = { name, description };
+            if (icpSource === 'custom') { body.icp_description = document.getElementById('icpDescription').value; }
+            else if (icpSource === 'template') {
+                if (!selectedTemplateId) { alert('Please select a template'); return; }
+                body.icp_template_id = selectedTemplateId;
+            }
+            try {
+                const response = await fetch('/api/campaigns', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                    body: JSON.stringify(body)
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    closeNewCampaignModal();
+                    // Show success notification
+                    if (window.showSuccess) {
+                        window.showSuccess('Campaign created successfully! 🎉');
+                    }
+                    // Reload campaigns to show the new one
+                    await loadCampaigns(currentStatus);
+                    // Optional: Redirect to dashboard to configure campaign
+                    // Uncomment next line if user wants to configure right away:
+                    // setTimeout(() => { window.location.href = `/dashboard?campaign_id=${data.campaign.id}`; }, 1500);
+                }
+                else {
+                    const error = await response.json();
+                    if (window.showError) {
+                        window.showError(error.error || 'Failed to create campaign');
+                    } else {
+                        alert('Failed to create campaign');
+                    }
+                }
+            } catch (err) {
+                console.error('Create campaign error:', err);
+                if (window.showError) {
+                    window.showError('Failed to create campaign');
+                } else {
+                    alert('Failed to create campaign');
+                }
+            }
+        });
+
+        function showDuplicateModal(campaignId, campaignName) {
+            duplicateCampaignId = campaignId;
+            document.getElementById('duplicateName').value = `${campaignName} (Copy)`;
+            document.getElementById('duplicateModal').classList.add('active');
+        }
+        function closeDuplicateModal() { document.getElementById('duplicateModal').classList.remove('active'); duplicateCampaignId = null; }
+
+        document.getElementById('duplicateForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newName = document.getElementById('duplicateName').value;
+            try {
+                const response = await fetch(`/api/campaigns/${duplicateCampaignId}/duplicate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ new_name: newName })
+                });
+                if (response.ok) { const data = await response.json(); closeDuplicateModal(); window.location.href = `/dashboard?campaign_id=${data.campaign.id}`; }
+                else { alert('Failed to duplicate campaign'); }
+            } catch (err) { console.error('Duplicate error:', err); alert('Failed to duplicate campaign'); }
+        });
+
+        async function archiveCampaign(id) {
+            if (!confirm('Archive this campaign?')) return;
+            try {
+                const response = await fetch(`/api/campaigns/${id}/archive`, { method: 'PUT' });
+                if (response.ok) loadCampaigns(currentStatus);
+                else alert('Failed to archive campaign');
+            } catch (err) { console.error('Archive error:', err); alert('Failed to archive campaign'); }
+        }
+
+        async function unarchiveCampaign(id) {
+            try {
+                const response = await fetch(`/api/campaigns/${id}/unarchive`, { method: 'PUT' });
+                if (response.ok) loadCampaigns(currentStatus);
+                else alert('Failed to restore campaign');
+            } catch (err) { console.error('Restore error:', err); alert('Failed to restore campaign'); }
+        }
+
+        async function deleteCampaign(id, name) {
+            if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+            try {
+                const response = await fetch(`/api/campaigns/${id}`, { method: 'DELETE' });
+                if (response.ok) loadCampaigns(currentStatus);
+                else alert('Failed to delete campaign');
+            } catch (err) { console.error('Delete error:', err); alert('Failed to delete campaign'); }
+        }
+
+        loadCampaigns('active');
+    </script>
+</body>
+</html>

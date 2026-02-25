@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Integrations - Koldly">
+    <meta name="theme-color" content="#FF6B35">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23FF6B35' width='100' height='100' rx='20'/><text x='50' y='70' font-size='60' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial'>K</text></svg>">
+    <title>Integrations - Koldly</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0A0A0A;
+            --bg-card: #141414;
+            --bg-card-hover: #1A1A1A;
+            --accent: #FF6B35;
+            --accent-glow: rgba(255, 107, 53, 0.15);
+            --text: #F5F5F5;
+            --text-muted: #888;
+            --border: #222;
+            --input-bg: #0F0F0F;
+            --input-border: #333;
+            --success: #10B981;
+            --error: #EF4444;
+            --warning: #F59E0B;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ====== SHARED NAV: Top Bar ====== */
+        .topbar { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: var(--bg-card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+        .topbar-left { display: flex; align-items: center; gap: 16px; }
+        .menu-toggle { display: none; background: none; border: none; color: var(--text); font-size: 24px; cursor: pointer; padding: 8px 12px; min-width: 44px; min-height: 44px; touch-action: manipulation; -webkit-tap-highlight-color: rgba(255, 107, 53, 0.3); line-height: 1; border-radius: 6px; position: relative; z-index: 10; }
+        .menu-toggle:active { background: rgba(255, 255, 255, 0.1); }
+        .sidebar-overlay { display: none; position: fixed; top: 60px; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); z-index: 998; }
+        .sidebar-overlay.active { display: block; }
+        .topbar-logo { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; color: var(--accent); text-decoration: none; }
+        .topbar-right { display: flex; align-items: center; gap: 16px; }
+        .user-avatar { width: 36px; height: 36px; border-radius: 8px; background: var(--accent-glow); border: 1px solid var(--accent); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+
+        /* ====== SHARED NAV: Sidebar ====== */
+        .main-layout { display: flex; gap: 0; }
+        .sidebar { width: 240px; background: var(--bg-card); border-right: 1px solid var(--border); padding: 20px 0; max-height: calc(100vh - 60px); overflow-y: auto; position: sticky; top: 60px; }
+        .sidebar-section { padding: 0 12px 16px 12px; }
+        .sidebar-title { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; padding: 12px 12px; letter-spacing: 0.5px; }
+        .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 12px 12px; color: var(--text-muted); text-decoration: none; border-radius: 8px; transition: all 0.2s ease; cursor: pointer; font-size: 14px; }
+        .sidebar-item:hover { background: var(--bg-card-hover); color: var(--text); }
+        .sidebar-item.active { background: var(--accent-glow); color: var(--accent); font-weight: 600; }
+        .sidebar-icon { font-size: 18px; width: 24px; }
+
+        /* ====== Content Area ====== */
+        .content { flex: 1; max-width: 1200px; margin: 0 auto; padding: 40px 20px; overflow-y: auto; max-height: calc(100vh - 60px); }
+
+        /* ====== Page-specific styles ====== */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+        .header h1 { font-family: 'Space Grotesk', sans-serif; font-size: 32px; font-weight: 700; }
+
+        .tabs { display: flex; gap: 24px; margin-bottom: 40px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+        .tab { padding: 16px 0; background: none; border: none; color: var(--text-muted); font-size: 14px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s ease; }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab:hover { color: var(--text); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .section-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin-bottom: 24px; transition: all 0.2s ease; }
+        .section-card:hover { border-color: var(--accent); box-shadow: 0 4px 20px var(--accent-glow); }
+        .section-card h2 { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+        .section-description { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
+
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+
+        input[type="text"], input[type="url"], input[type="number"], textarea {
+            width: 100%; padding: 12px 16px; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; transition: all 0.2s ease;
+        }
+        input[type="text"]:focus, input[type="url"]:focus, input[type="number"]:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+        input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent); }
+
+        .checkbox-group { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg); border-radius: 8px; margin-bottom: 12px; }
+        .checkbox-group label { margin: 0; flex: 1; cursor: pointer; }
+
+        .form-helper { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+        .form-helper a { color: var(--accent); text-decoration: none; }
+        .form-helper a:hover { text-decoration: underline; }
+
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px var(--accent-glow); }
+        .btn-secondary { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { border-color: var(--accent); background: var(--bg-card-hover); }
+        .button-group { display: flex; gap: 12px; flex-wrap: wrap; }
+
+        .status-message { padding: 16px; border-radius: 8px; margin-top: 16px; font-size: 14px; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .status-success { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid var(--success); }
+        .status-error { background: rgba(239, 68, 68, 0.1); color: var(--error); border: 1px solid var(--error); }
+
+        .section-divider { border-top: 1px solid var(--border); margin: 32px 0; padding-top: 32px; }
+        .section-title { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+
+        .list-item { display: flex; justify-content: space-between; align-items: start; padding: 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; transition: all 0.2s ease; }
+        .list-item:hover { border-color: var(--accent); }
+        .list-item-info { flex: 1; }
+        .list-item-title { font-weight: 600; margin-bottom: 4px; }
+        .list-item-detail { font-size: 13px; color: var(--text-muted); }
+        .list-item-actions { display: flex; gap: 12px; }
+        .list-item-actions button { padding: 8px 12px; font-size: 12px; border-radius: 6px; border: none; cursor: pointer; background: var(--bg-card); color: var(--text); transition: all 0.2s ease; }
+        .list-item-actions button:hover { background: var(--accent); color: white; }
+
+        .empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
+        .empty-state-icon { font-size: 40px; margin-bottom: 16px; }
+
+        /* ====== Responsive ====== */
+        @media (max-width: 1024px) {
+            .sidebar { width: 200px; padding: 16px 0; }
+            .content { padding: 24px 16px; }
+        }
+
+        @media (max-width: 768px) {
+            .menu-toggle { display: block; }
+            .sidebar { display: none; position: fixed; left: 0; top: 60px; width: 200px; height: calc(100vh - 60px); z-index: 999; }
+            .sidebar.active { display: block; }
+            .header h1 { font-size: 24px; }
+            .content { padding: 20px 12px; }
+            .tabs { gap: 12px; }
+            .section-card { padding: 20px; }
+            .button-group { flex-direction: column; }
+            .btn { width: 100%; justify-content: center; }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 { font-size: 20px; }
+            .content { padding: 16px 12px; }
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    </style>
+    <script src="/js/notifications.js"></script>
+    <script src="/js/error-handler.js"></script>
+    <script src="/js/skeletons.js"></script>
+    <script src="/js/modals.js"></script>
+    <script src="/js/forms.js"></script>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            <a href="/" class="topbar-logo">Koldly</a>
+        </div>
+        <div class="topbar-right">
+            <div class="user-avatar" onclick="navigateTo('/settings')">👤</div>
+        </div>
+    </div>
+
+    <!-- Sidebar overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-item" onclick="navigateTo('/dashboard')">
+                    <span class="sidebar-icon">📊</span>
+                    <span>Dashboard</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/campaigns')">
+                    <span class="sidebar-icon">📧</span>
+                    <span>Campaigns</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/analytics')">
+                    <span class="sidebar-icon">📈</span>
+                    <span>Analytics</span>
+                </div>
+                <div class="sidebar-item active" onclick="navigateTo('/integrations')">
+                    <span class="sidebar-icon">🔗</span>
+                    <span>Integrations</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">Settings</div>
+                <div class="sidebar-item" onclick="navigateTo('/settings')">
+                    <span class="sidebar-icon">⚙️</span>
+                    <span>Settings</span>
+                </div>
+                <div class="sidebar-item" onclick="logout()">
+                    <span class="sidebar-icon">🚪</span>
+                    <span>Logout</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="content">
+            <div class="header">
+                <h1>Integrations</h1>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab(this, 'slack')">Slack</button>
+                <button class="tab" onclick="switchTab(this, 'webhooks')">Webhooks</button>
+                <button class="tab" onclick="switchTab(this, 'export')">Export Data</button>
+            </div>
+
+            <!-- Slack Tab -->
+            <div id="slack" class="tab-content active">
+                <div class="section-card">
+                    <h2>Slack Notifications</h2>
+                    <p class="section-description">Get real-time notifications in Slack when prospects reply, emails bounce, or sequences complete.</p>
+                    <div class="form-group">
+                        <label for="slack-webhook-url">Slack Webhook URL</label>
+                        <input type="url" id="slack-webhook-url" placeholder="https://hooks.slack.com/services/YOUR/WEBHOOK/URL">
+                        <p class="form-helper"><a href="https://api.slack.com/messaging/webhooks" target="_blank">Create an Incoming Webhook</a> in your Slack workspace settings</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="slack-channel">Channel (optional)</label>
+                        <input type="text" id="slack-channel" placeholder="general">
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="slack-enabled">
+                        <label for="slack-enabled">Enable Slack notifications</label>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="saveSlackIntegration()">Save Configuration</button>
+                        <button class="btn btn-secondary" onclick="testSlackIntegration()">Send Test Message</button>
+                    </div>
+                    <div id="slack-status"></div>
+                </div>
+            </div>
+
+            <!-- Webhooks Tab -->
+            <div id="webhooks" class="tab-content">
+                <div class="section-card">
+                    <h2>Webhook Endpoints</h2>
+                    <p class="section-description">Configure webhooks to send event data to external services like Zapier, Make, or custom integrations.</p>
+                    <div class="form-group">
+                        <label for="webhook-url">Webhook URL</label>
+                        <input type="url" id="webhook-url" placeholder="https://your-app.com/webhooks/koldly">
+                    </div>
+                    <div class="form-group">
+                        <label>Events to Subscribe</label>
+                        <div class="checkbox-group"><input type="checkbox" value="email.sent" class="webhook-event"><label>Email Sent</label></div>
+                        <div class="checkbox-group"><input type="checkbox" value="email.bounced" class="webhook-event"><label>Email Bounced</label></div>
+                        <div class="checkbox-group"><input type="checkbox" value="sequence.completed" class="webhook-event"><label>Sequence Completed</label></div>
+                        <div class="checkbox-group"><input type="checkbox" value="prospect.replied" class="webhook-event"><label>Prospect Replied</label></div>
+                        <div class="checkbox-group"><input type="checkbox" value="campaign.created" class="webhook-event"><label>Campaign Created</label></div>
+                    </div>
+                    <button class="btn btn-primary" onclick="createWebhook()">Create Webhook</button>
+                    <div id="webhook-status"></div>
+                    <div class="section-divider">
+                        <h3 class="section-title">Active Webhooks</h3>
+                        <div id="webhooks-list"><p class="empty-state">Loading webhooks...</p></div>
+                    </div>
+                </div>
+                <div class="section-card">
+                    <h2>Recent Webhook Deliveries</h2>
+                    <div id="webhook-logs"><p class="empty-state">Loading logs...</p></div>
+                </div>
+            </div>
+
+            <!-- Export Tab -->
+            <div id="export" class="tab-content">
+                <div class="section-card">
+                    <h2>Export Campaign Data</h2>
+                    <p class="section-description">Export your campaign data to CSV or JSON format for importing into CRMs or analysis tools.</p>
+                    <div class="form-group">
+                        <label for="export-campaign-id">Campaign ID</label>
+                        <input type="number" id="export-campaign-id" placeholder="1">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                        <div class="section-card">
+                            <h3 class="section-title" style="margin-top: 0;">CSV Export</h3>
+                            <p class="section-description">Perfect for importing into Excel, Google Sheets, or CRMs.</p>
+                            <button class="btn btn-primary" onclick="exportData('csv', 'prospects')" style="width: 100%; margin-bottom: 12px;">Export Prospects (CSV)</button>
+                            <button class="btn btn-primary" onclick="exportData('csv', 'emails')" style="width: 100%;">Export Emails (CSV)</button>
+                        </div>
+                        <div class="section-card">
+                            <h3 class="section-title" style="margin-top: 0;">JSON Export</h3>
+                            <p class="section-description">Complete data export for custom integrations and backups.</p>
+                            <button class="btn btn-primary" onclick="exportData('json', 'prospects')" style="width: 100%; margin-bottom: 12px;">Export Prospects (JSON)</button>
+                            <button class="btn btn-primary" onclick="exportData('json', 'emails')" style="width: 100%; margin-bottom: 12px;">Export Emails (JSON)</button>
+                            <button class="btn btn-primary" onclick="exportData('json', 'all')" style="width: 100%;">Export Full Campaign (JSON)</button>
+                        </div>
+                    </div>
+                    <div id="export-status"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Auth guard — redirect to login if no token
+        (function() {
+            var token = localStorage.getItem('auth_token');
+            if (!token) { window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname); return; }
+            fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+                .then(function(r) { if (!r.ok) { localStorage.removeItem('auth_token'); localStorage.removeItem('user_email'); localStorage.removeItem('user_name'); window.location.href = '/login'; } })
+                .catch(function() {});
+        })();
+
+        // Shared nav functions — iOS-compatible touch handling
+        (function() {
+            var sidebar = document.getElementById('sidebar');
+            var overlay = document.getElementById('sidebarOverlay');
+            var menuBtn = document.querySelector('.menu-toggle');
+
+            function openClose() {
+                var isOpen = sidebar.classList.toggle('active');
+                if (overlay) overlay.classList.toggle('active', isOpen);
+            }
+
+            window.toggleSidebar = openClose;
+
+            if (menuBtn) {
+                menuBtn.addEventListener('touchend', function(e) { e.preventDefault(); openClose(); });
+            }
+
+            if (overlay) {
+                overlay.addEventListener('touchend', function(e) { e.preventDefault(); sidebar.classList.remove('active'); overlay.classList.remove('active'); });
+                overlay.addEventListener('click', function() { sidebar.classList.remove('active'); overlay.classList.remove('active'); });
+            }
+
+            document.querySelectorAll('.sidebar-item').forEach(function(item) {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth < 768) { sidebar.classList.remove('active'); if (overlay) overlay.classList.remove('active'); }
+                });
+            });
+        })();
+        function navigateTo(path) { window.location.href = path; }
+        function logout() { localStorage.removeItem('auth_token'); localStorage.removeItem('user_email'); localStorage.removeItem('user_name'); window.location.href = '/'; }
+
+        function switchTab(button, tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            button.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        function showStatus(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            const className = type === 'success' ? 'status-success' : 'status-error';
+            el.innerHTML = `<div class="status-message ${className}">${message}</div>`;
+            setTimeout(() => el.innerHTML = '', 5000);
+        }
+
+        async function saveSlackIntegration() {
+            const webhookUrl = document.getElementById('slack-webhook-url').value;
+            const channel = document.getElementById('slack-channel').value || 'general';
+            const enabled = document.getElementById('slack-enabled').checked;
+            if (!webhookUrl) { showStatus('slack-status', 'Please enter a webhook URL', 'error'); return; }
+            try {
+                const response = await fetch('/api/integrations/slack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ webhook_url: webhookUrl, channel, enabled }) });
+                const data = await response.json();
+                if (response.ok) showStatus('slack-status', 'Slack integration saved successfully!', 'success');
+                else showStatus('slack-status', data.error || 'Failed to save integration', 'error');
+            } catch (err) { showStatus('slack-status', 'Network error: ' + err.message, 'error'); }
+        }
+
+        async function testSlackIntegration() {
+            try {
+                const response = await fetch('/api/integrations/slack/test', { method: 'POST' });
+                const data = await response.json();
+                if (data.success) showStatus('slack-status', 'Test message sent! Check your Slack channel.', 'success');
+                else showStatus('slack-status', data.message || 'Test failed', 'error');
+            } catch (err) { showStatus('slack-status', 'Network error: ' + err.message, 'error'); }
+        }
+
+        async function createWebhook() {
+            const url = document.getElementById('webhook-url').value;
+            const events = Array.from(document.querySelectorAll('.webhook-event:checked')).map(el => el.value);
+            if (!url) { showStatus('webhook-status', 'Please enter a webhook URL', 'error'); return; }
+            if (events.length === 0) { showStatus('webhook-status', 'Please select at least one event', 'error'); return; }
+            try {
+                const response = await fetch('/api/webhooks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, events }) });
+                const data = await response.json();
+                if (response.ok) {
+                    showStatus('webhook-status', `Webhook created! Secret key: ${data.webhook.secret_key}`, 'success');
+                    document.getElementById('webhook-url').value = '';
+                    document.querySelectorAll('.webhook-event').forEach(el => el.checked = false);
+                    loadWebhooks();
+                } else showStatus('webhook-status', data.error || 'Failed to create webhook', 'error');
+            } catch (err) { showStatus('webhook-status', 'Network error: ' + err.message, 'error'); }
+        }
+
+        async function loadWebhooks() {
+            try {
+                const response = await fetch('/api/webhooks');
+                const data = await response.json();
+                const container = document.getElementById('webhooks-list');
+                if (data.webhooks.length === 0) { container.innerHTML = '<p class="empty-state">No webhooks configured yet.</p>'; return; }
+                container.innerHTML = data.webhooks.map(wh => `
+                    <div class="list-item">
+                        <div class="list-item-info">
+                            <div class="list-item-title">${wh.url}</div>
+                            <div class="list-item-detail">Events: ${wh.events.join(', ')}</div>
+                            <div class="list-item-detail">Status: ${wh.enabled ? '✓ Enabled' : '○ Disabled'}</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <button onclick="testWebhook(${wh.id})">Test</button>
+                            <button onclick="deleteWebhook(${wh.id})">Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) { console.error('Failed to load webhooks:', err); }
+        }
+
+        async function testWebhook(webhookId) {
+            try {
+                const response = await fetch(`/api/webhooks/${webhookId}/test`, { method: 'POST' });
+                const data = await response.json();
+                alert(data.message);
+            } catch (err) { alert('Failed to test webhook: ' + err.message); }
+        }
+
+        async function deleteWebhook(webhookId) {
+            if (!confirm('Delete this webhook?')) return;
+            try {
+                const response = await fetch(`/api/webhooks/${webhookId}`, { method: 'DELETE' });
+                if (response.ok) loadWebhooks();
+            } catch (err) { alert('Failed to delete webhook: ' + err.message); }
+        }
+
+        async function loadWebhookLogs() {
+            try {
+                const response = await fetch('/api/webhooks/logs');
+                const data = await response.json();
+                const container = document.getElementById('webhook-logs');
+                if (data.logs.length === 0) { container.innerHTML = '<p class="empty-state">No webhook deliveries yet.</p>'; return; }
+                container.innerHTML = data.logs.map(log => `
+                    <div class="list-item">
+                        <div class="list-item-info">
+                            <div class="list-item-title">${log.event_type} → ${log.url}</div>
+                            <div class="list-item-detail">${log.delivered ? `✓ Delivered (${log.response_status})` : `✗ Failed: ${log.error || 'Unknown error'}`} · ${new Date(log.attempted_at).toLocaleString()}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) { console.error('Failed to load webhook logs:', err); }
+        }
+
+        function exportData(format, type) {
+            const campaignId = document.getElementById('export-campaign-id').value;
+            if (!campaignId) { showStatus('export-status', 'Please enter a campaign ID', 'error'); return; }
+            window.location.href = `/api/campaigns/${campaignId}/export/${format}?type=${type}`;
+            showStatus('export-status', 'Export started - download should begin shortly', 'success');
+        }
+
+        window.addEventListener('DOMContentLoaded', () => { loadWebhooks(); loadWebhookLogs(); });
+    </script>
+</body>
+</html>

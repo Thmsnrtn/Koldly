@@ -1,0 +1,17 @@
+[
+  {
+    "content": "Fix Gemini API geo-restriction in proof-service.js",
+    "status": "completed",
+    "activeForm": "Fixing Gemini API geo-restriction in proof-service.js"
+  },
+  {
+    "content": "Fix campaign metrics pv.prospect_id column error",
+    "status": "completed",
+    "activeForm": "Fixing campaign metrics pv.prospect_id column error"
+  },
+  {
+    "content": "Deploy and verify both fixes",
+    "status": "in_progress",
+    "activeForm": "Deploying and verifying both fixes"
+  }
+]

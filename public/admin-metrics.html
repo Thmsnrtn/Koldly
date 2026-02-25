@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Metrics - Koldly</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+  </style>
+    <script src="/js/notifications.js"></script>
+    <script src="/js/error-handler.js"></script>
+    <script src="/js/skeletons.js"></script>
+    <script src="/js/modals.js"></script>
+    <script src="/js/forms.js"></script>
+</head>
+<body class="bg-slate-900 text-white min-h-screen">
+  <div class="max-w-7xl mx-auto p-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-4xl font-bold mb-2">Admin Metrics Dashboard</h1>
+      <p class="text-slate-400">Real-time analytics for Koldly</p>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading" class="text-center py-20">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+      <p class="mt-4 text-slate-400">Loading metrics...</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="error" class="hidden bg-red-900/20 border border-red-500 rounded-lg p-6 mb-6">
+      <p class="text-red-400 font-semibold">Error loading metrics</p>
+      <p class="text-red-300 text-sm mt-2" id="error-message"></p>
+    </div>
+
+    <!-- Period Selector -->
+    <div id="period-selector" class="hidden mb-8 flex gap-3">
+      <button onclick="loadMetrics('24h')" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors period-btn" data-period="24h">24 Hours</button>
+      <button onclick="loadMetrics('7d')" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors period-btn" data-period="7d">7 Days</button>
+      <button onclick="loadMetrics('30d')" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors period-btn" data-period="30d">30 Days</button>
+    </div>
+
+    <!-- Metrics Grid -->
+    <div id="metrics" class="hidden">
+      <!-- Overview Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- Total Users -->
+        <div class="bg-slate-800 rounded-lg p-6 border border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-slate-400 text-sm font-medium">Total Users</span>
+            <span class="text-2xl">👥</span>
+          </div>
+          <div class="text-4xl font-bold" id="total-users">-</div>
+          <div class="text-sm text-slate-400 mt-2">All time</div>
+        </div>
+
+        <!-- Active Users -->
+        <div class="bg-slate-800 rounded-lg p-6 border border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-slate-400 text-sm font-medium">Active Users</span>
+            <span class="text-2xl">⚡</span>
+          </div>
+          <div class="text-4xl font-bold" id="active-users">-</div>
+          <div class="text-sm text-slate-400 mt-2">Last 7 days</div>
+        </div>
+
+        <!-- Total Campaigns -->
+        <div class="bg-slate-800 rounded-lg p-6 border border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-slate-400 text-sm font-medium">Total Campaigns</span>
+            <span class="text-2xl">📧</span>
+          </div>
+          <div class="text-4xl font-bold" id="total-campaigns">-</div>
+          <div class="text-sm text-slate-400 mt-2">All time</div>
+        </div>
+
+        <!-- Emails Sent -->
+        <div class="bg-slate-800 rounded-lg p-6 border border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-slate-400 text-sm font-medium">Emails Sent</span>
+            <span class="text-2xl">📤</span>
+          </div>
+          <div class="text-4xl font-bold" id="emails-sent">-</div>
+          <div class="text-sm text-slate-400 mt-2">All time</div>
+        </div>
+      </div>
+
+      <!-- Signups Section -->
+      <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 mb-8">
+        <h2 class="text-2xl font-bold mb-6">New Signups</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <div class="text-slate-400 text-sm mb-2">Last 24 Hours</div>
+            <div class="text-3xl font-bold" id="signups-24h">-</div>
+          </div>
+          <div>
+            <div class="text-slate-400 text-sm mb-2">Last 7 Days</div>
+            <div class="text-3xl font-bold" id="signups-7d">-</div>
+          </div>
+          <div>
+            <div class="text-slate-400 text-sm mb-2">Last 30 Days</div>
+            <div class="text-3xl font-bold" id="signups-30d">-</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page Views Section -->
+      <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 mb-8">
+        <h2 class="text-2xl font-bold mb-6">Page Views</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div>
+            <div class="text-slate-400 text-sm mb-2">Last 24 Hours</div>
+            <div class="text-3xl font-bold" id="pageviews-24h">-</div>
+          </div>
+          <div>
+            <div class="text-slate-400 text-sm mb-2">Last 7 Days</div>
+            <div class="text-3xl font-bold" id="pageviews-7d">-</div>
+          </div>
+          <div>
+            <div class="text-slate-400 text-sm mb-2">Last 30 Days</div>
+            <div class="text-3xl font-bold" id="pageviews-30d">-</div>
+          </div>
+        </div>
+
+        <!-- Top Pages -->
+        <div class="mt-8">
+          <h3 class="text-xl font-semibold mb-4">Top Pages (Selected Period)</h3>
+          <div id="top-pages" class="space-y-2">
+            <!-- Will be populated dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Revenue Section -->
+      <div class="bg-slate-800 rounded-lg p-6 border border-slate-700">
+        <h2 class="text-2xl font-bold mb-4">Revenue</h2>
+        <div class="text-slate-400">
+          <p id="revenue-note">Stripe integration pending</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentPeriod = '7d';
+
+    // Check authentication on load
+    async function checkAuth() {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        window.location.href = '/';
+        return false;
+      }
+      return true;
+    }
+
+    // Load metrics
+    async function loadMetrics(period = '7d') {
+      currentPeriod = period;
+
+      // Update button states
+      document.querySelectorAll('.period-btn').forEach(btn => {
+        if (btn.dataset.period === period) {
+          btn.classList.add('ring-2', 'ring-white');
+        } else {
+          btn.classList.remove('ring-2', 'ring-white');
+        }
+      });
+
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`/api/metrics?period=${period}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            window.location.href = '/';
+            return;
+          }
+          if (response.status === 403) {
+            throw new Error('Access denied - Admin access only');
+          }
+          throw new Error('Failed to fetch metrics');
+        }
+
+        const data = await response.json();
+        displayMetrics(data);
+
+        // Show metrics, hide loading
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('period-selector').classList.remove('hidden');
+        document.getElementById('metrics').classList.remove('hidden');
+      } catch (err) {
+        console.error('Error loading metrics:', err);
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('error').classList.remove('hidden');
+        document.getElementById('error-message').textContent = err.message;
+      }
+    }
+
+    // Display metrics
+    function displayMetrics(data) {
+      // Overview cards
+      document.getElementById('total-users').textContent = data.users.total.toLocaleString();
+      document.getElementById('active-users').textContent = data.users.active_7d.toLocaleString();
+      document.getElementById('total-campaigns').textContent = data.campaigns.total.toLocaleString();
+      document.getElementById('emails-sent').textContent = data.emails.total_sent.toLocaleString();
+
+      // Signups
+      document.getElementById('signups-24h').textContent = data.users.signups['24h'].toLocaleString();
+      document.getElementById('signups-7d').textContent = data.users.signups['7d'].toLocaleString();
+      document.getElementById('signups-30d').textContent = data.users.signups['30d'].toLocaleString();
+
+      // Page views
+      document.getElementById('pageviews-24h').textContent = data.page_views['24h'].toLocaleString();
+      document.getElementById('pageviews-7d').textContent = data.page_views['7d'].toLocaleString();
+      document.getElementById('pageviews-30d').textContent = data.page_views['30d'].toLocaleString();
+
+      // Top pages
+      const topPagesContainer = document.getElementById('top-pages');
+      if (data.page_views.by_path && data.page_views.by_path.length > 0) {
+        topPagesContainer.innerHTML = data.page_views.by_path.map(page => `
+          <div class="flex justify-between items-center bg-slate-700/50 p-3 rounded">
+            <span class="font-mono text-sm">${page.path || '/'}</span>
+            <span class="font-bold">${parseInt(page.views).toLocaleString()}</span>
+          </div>
+        `).join('');
+      } else {
+        topPagesContainer.innerHTML = '<p class="text-slate-400 text-sm">No page view data for this period</p>';
+      }
+
+      // Revenue
+      if (data.revenue && data.revenue.note) {
+        document.getElementById('revenue-note').textContent = data.revenue.note;
+      }
+    }
+
+    // Initialize
+    (async () => {
+      const authenticated = await checkAuth();
+      if (authenticated) {
+        loadMetrics('7d');
+      }
+    })();
+  </script>
+</body>
+</html>

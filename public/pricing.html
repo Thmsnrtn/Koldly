@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing - Koldly</title>
+    <meta name="description" content="Simple, transparent pricing for AI-powered prospecting and cold email outreach. Plans for every stage of growth.">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0A0A0A;
+            --bg-card: #141414;
+            --bg-card-hover: #1A1A1A;
+            --accent: #FF6B35;
+            --accent-glow: rgba(255, 107, 53, 0.15);
+            --text: #F5F5F5;
+            --text-muted: #888;
+            --border: #222;
+            --success: #10B981;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: 20px;
+            transition: color 0.2s ease;
+        }
+
+        .back-link:hover {
+            color: var(--text);
+        }
+
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent), #FF8C61);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 20px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        .pricing-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pricing-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 8px 32px var(--accent-glow);
+            transform: translateY(-4px);
+        }
+
+        .pricing-card.featured {
+            border-color: var(--accent);
+            position: relative;
+            box-shadow: 0 4px 24px var(--accent-glow);
+        }
+
+        .featured-badge {
+            position: absolute;
+            top: -12px;
+            right: 32px;
+            background: var(--accent);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .plan-name {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .plan-description {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        .price {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 32px;
+        }
+
+        .price-amount {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 48px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .price-period {
+            font-size: 18px;
+            color: var(--text-muted);
+            margin-left: 8px;
+        }
+
+        .features {
+            list-style: none;
+            margin-bottom: 32px;
+            flex-grow: 1;
+        }
+
+        .features li {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 15px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .features li:last-child {
+            border-bottom: none;
+        }
+
+        .features li::before {
+            content: "✓";
+            color: var(--success);
+            font-weight: 700;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .cta-button {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background: var(--accent);
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px var(--accent-glow);
+        }
+
+        .cta-button.secondary {
+            background: var(--bg-card-hover);
+            border: 1px solid var(--border);
+        }
+
+        .cta-button.secondary:hover {
+            background: #222;
+            box-shadow: none;
+        }
+
+        .faq {
+            max-width: 800px;
+            margin: 0 auto;
+            padding-top: 40px;
+            border-top: 1px solid var(--border);
+        }
+
+        .faq h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 32px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .faq-item {
+            margin-bottom: 32px;
+        }
+
+        .faq-question {
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+
+        .faq-answer {
+            color: var(--text-muted);
+            line-height: 1.8;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 36px;
+            }
+
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .price-amount {
+                font-size: 40px;
+            }
+        }
+    </style>
+    <link rel="canonical" href="https://koldly.com/pricing">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/" class="back-link">← Back to Home</a>
+            <h1>Simple, Transparent Pricing</h1>
+            <p class="subtitle">Choose the plan that fits your growth stage</p>
+        </div>
+
+        <div class="pricing-grid">
+            <!-- Starter Plan -->
+            <div class="pricing-card">
+                <div class="plan-name">Starter</div>
+                <div class="plan-description">Perfect for solo founders testing the waters</div>
+                <div class="price">
+                    <span class="price-amount">$29</span>
+                    <span class="price-period">/month</span>
+                </div>
+                <ul class="features">
+                    <li>100 emails per month</li>
+                    <li>1 active campaign</li>
+                    <li>AI-powered prospect discovery</li>
+                    <li>Personalized email generation</li>
+                    <li>Basic analytics dashboard</li>
+                    <li>Email support</li>
+                </ul>
+                <a href="https://buy.stripe.com/eVq6oH5zMgWI5440qCdjV0B" class="cta-button">Get Started</a>
+            </div>
+
+            <!-- Growth Plan (Featured) -->
+            <div class="pricing-card featured">
+                <span class="featured-badge">Most Popular</span>
+                <div class="plan-name">Growth</div>
+                <div class="plan-description">For growing businesses scaling outreach</div>
+                <div class="price">
+                    <span class="price-amount">$79</span>
+                    <span class="price-period">/month</span>
+                </div>
+                <ul class="features">
+                    <li>500 emails per month</li>
+                    <li>5 active campaigns</li>
+                    <li>AI reply categorization</li>
+                    <li>Advanced prospect filtering</li>
+                    <li>Multi-touch email sequences</li>
+                    <li>Priority email support</li>
+                    <li>Advanced analytics & reporting</li>
+                </ul>
+                <a href="https://buy.stripe.com/3cI00j5zM35SeEEflwdjV0C" class="cta-button">Get Started</a>
+            </div>
+
+            <!-- Scale Plan -->
+            <div class="pricing-card">
+                <div class="plan-name">Scale</div>
+                <div class="plan-description">Enterprise-grade for high-volume teams</div>
+                <div class="price">
+                    <span class="price-amount">$199</span>
+                    <span class="price-period">/month</span>
+                </div>
+                <ul class="features">
+                    <li>Unlimited emails per month</li>
+                    <li>Unlimited campaigns</li>
+                    <li>AI reply categorization</li>
+                    <li>Advanced personalization</li>
+                    <li>Multi-step automated sequences</li>
+                    <li>Dedicated account support</li>
+                    <li>Custom integrations</li>
+                    <li>Priority feature requests</li>
+                    <li>API access (coming soon)</li>
+                </ul>
+                <a href="https://buy.stripe.com/28E8wP6DQ21O0NO8X8djV0D" class="cta-button">Get Started</a>
+            </div>
+        </div>
+
+        <div class="faq">
+            <h2>Frequently Asked Questions</h2>
+
+            <div class="faq-item">
+                <div class="faq-question">Can I cancel anytime?</div>
+                <div class="faq-answer">Yes! All plans are month-to-month. Cancel anytime from your dashboard with no penalties or long-term contracts.</div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">What happens if I exceed my prospect limit?</div>
+                <div class="faq-answer">You can upgrade to the next tier anytime. We'll never shut off your campaigns mid-month — you'll just need to upgrade before creating new ones.</div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">Do you offer a free trial?</div>
+                <div class="faq-answer">We offer a 7-day money-back guarantee. Try any plan risk-free, and if you're not satisfied, we'll refund you in full.</div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">Can I switch plans later?</div>
+                <div class="faq-answer">Absolutely! Upgrade or downgrade anytime. Changes take effect immediately, and we'll prorate the difference.</div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">What payment methods do you accept?</div>
+                <div class="faq-answer">We accept all major credit cards (Visa, Mastercard, Amex) through Stripe. Your payment info is securely processed and never stored on our servers.</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

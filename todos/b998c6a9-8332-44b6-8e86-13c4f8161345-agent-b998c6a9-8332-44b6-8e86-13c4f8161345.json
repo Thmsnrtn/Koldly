@@ -1,0 +1,42 @@
+[
+  {
+    "content": "Create database migration for password reset tokens table",
+    "status": "completed",
+    "activeForm": "Creating database migration for password reset tokens table"
+  },
+  {
+    "content": "Add reset password methods to auth service",
+    "status": "completed",
+    "activeForm": "Adding reset password methods to auth service"
+  },
+  {
+    "content": "Add forgot password API endpoints (request reset, verify token, reset password)",
+    "status": "completed",
+    "activeForm": "Adding forgot password API endpoints"
+  },
+  {
+    "content": "Create forgot password page with email form",
+    "status": "completed",
+    "activeForm": "Creating forgot password page with email form"
+  },
+  {
+    "content": "Create reset password page with new password form",
+    "status": "completed",
+    "activeForm": "Creating reset password page with new password form"
+  },
+  {
+    "content": "Add 'Forgot password?' link to login page",
+    "status": "completed",
+    "activeForm": "Adding 'Forgot password?' link to login page"
+  },
+  {
+    "content": "Add route handlers for forgot/reset password pages",
+    "status": "completed",
+    "activeForm": "Adding route handlers for forgot/reset password pages"
+  },
+  {
+    "content": "Push to production and test complete flow",
+    "status": "in_progress",
+    "activeForm": "Pushing to production and testing complete flow"
+  }
+]

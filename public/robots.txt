@@ -1,0 +1,25 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /campaigns
+Disallow: /analytics
+Disallow: /settings
+Disallow: /billing
+Disallow: /inbox
+Disallow: /integrations
+Disallow: /admin
+Disallow: /api/
+Disallow: /auth/
+
+# Specific rules for search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# Crawl delay
+Crawl-delay: 1
+
+# Sitemap
+Sitemap: https://koldly.com/sitemap.xml

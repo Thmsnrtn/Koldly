@@ -1,0 +1,11 @@
+node_modules/
+.env
+.DS_Store
+
+# Polsia test fixtures (auto-injected, do not commit)
+test-fixtures/
+# Polsia safety (auto-injected, do not commit)
+.env.*
+.claude/
+projects/
+*.jsonl

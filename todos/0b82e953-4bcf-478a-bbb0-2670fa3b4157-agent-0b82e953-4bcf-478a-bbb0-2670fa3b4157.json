@@ -1,0 +1,27 @@
+[
+  {
+    "content": "Fix auth backend — signup/login routes don't generate or return JWT tokens",
+    "status": "completed",
+    "activeForm": "Fixing auth backend — signup/login routes"
+  },
+  {
+    "content": "Rebuild login.html and signup.html with Koldly dark theme",
+    "status": "completed",
+    "activeForm": "Rebuilding login and signup pages"
+  },
+  {
+    "content": "Add client-side auth guards to all protected pages + sign-out",
+    "status": "completed",
+    "activeForm": "Adding auth guards and sign-out to all pages"
+  },
+  {
+    "content": "Update landing page CTAs to route through auth",
+    "status": "in_progress",
+    "activeForm": "Updating landing page CTAs"
+  },
+  {
+    "content": "Deploy and verify auth flow end-to-end",
+    "status": "pending",
+    "activeForm": "Deploying and verifying auth flow"
+  }
+]
