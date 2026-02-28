@@ -533,8 +533,8 @@
           localStorage.setItem('user_name', data.user.name || '');
         }
 
-        // Redirect to dashboard
-        window.location.href = '/dashboard';
+        // Redirect to onboarding for new users
+        window.location.href = '/onboarding';
       } catch (error) {
         errorMessage.textContent = error.message;
         errorMessage.classList.add('show');

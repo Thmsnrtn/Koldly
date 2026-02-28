@@ -3,571 +3,324 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Onboarding - Koldly</title>
+  <title>Get Started - Koldly</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23FF6B35' width='100' height='100' rx='20'/><text x='50' y='70' font-size='60' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial'>K</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
-      --bg: #0A0A0A;
-      --bg-card: #141414;
-      --bg-card-hover: #1A1A1A;
-      --accent: #FF6B35;
-      --accent-glow: rgba(255, 107, 53, 0.15);
-      --text: #F5F5F5;
-      --text-muted: #888;
-      --border: #222;
-      --input-bg: #0F0F0F;
-      --input-border: #333;
-      --success: #10B981;
-      --error: #EF4444;
+      --bg: #0A0A0A; --bg-card: #141414; --accent: #FF6B35;
+      --accent-glow: rgba(255, 107, 53, 0.15); --text: #F5F5F5;
+      --text-muted: #888; --border: #222; --input-bg: #0F0F0F;
+      --input-border: #333; --success: #10B981; --error: #EF4444;
     }
-
     body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      font-family: 'DM Sans', sans-serif; background: var(--bg);
+      color: var(--text); line-height: 1.6; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
       -webkit-font-smoothing: antialiased;
     }
-
-    .container {
-      max-width: 600px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 20px;
-    }
-
+    .container { max-width: 600px; width: 100%; margin: 0 auto; padding: 20px; }
     .wizard-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 48px 40px;
-      transition: all 0.2s ease;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 48px 40px;
     }
-
-    .wizard-header {
-      text-align: center;
-      margin-bottom: 40px;
-    }
-
+    .wizard-header { text-align: center; margin-bottom: 40px; }
     .wizard-logo {
-      width: 64px;
-      height: 64px;
+      width: 64px; height: 64px;
       background: linear-gradient(135deg, var(--accent) 0%, #FF8A50 100%);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 32px;
-      font-weight: 700;
-      color: white;
-      margin: 0 auto 24px;
-      box-shadow: 0 8px 20px var(--accent-glow);
+      border-radius: 12px; display: flex; align-items: center; justify-content: center;
+      font-size: 32px; font-weight: 700; color: white;
+      margin: 0 auto 24px; box-shadow: 0 8px 20px var(--accent-glow);
     }
+    .wizard-header h1 { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    .wizard-header p { color: var(--text-muted); font-size: 14px; }
 
-    .wizard-header h1 {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 28px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .wizard-header p {
-      color: var(--text-muted);
-      font-size: 14px;
-    }
-
-    .step-indicator {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 40px;
-    }
-
-    .step-indicator .step {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      flex: 1;
-    }
-
+    .step-indicator { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+    .step-indicator .step { display: flex; flex-direction: column; align-items: center; flex: 1; }
     .step-indicator .step-number {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: var(--bg);
-      border: 2px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      margin-bottom: 8px;
-      transition: all 0.2s ease;
+      width: 40px; height: 40px; border-radius: 50%; background: var(--bg);
+      border: 2px solid var(--border); display: flex; align-items: center;
+      justify-content: center; font-weight: 700; margin-bottom: 8px; transition: all 0.2s ease;
     }
+    .step-indicator .step.active .step-number { background: var(--accent); color: white; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .step-indicator .step.completed .step-number { background: var(--success); color: white; border-color: var(--success); }
+    .step-indicator .step-label { font-size: 12px; color: var(--text-muted); text-align: center; }
+    .step-indicator .step.active .step-label { color: var(--accent); font-weight: 600; }
+    .step-indicator .step.completed .step-label { color: var(--success); font-weight: 600; }
+    .step-connector { flex: 1; height: 2px; background: var(--border); margin: 0 -8px; margin-top: 20px; }
+    .step-connector.active { background: var(--accent); }
 
-    .step-indicator .step.active .step-number {
-      background: var(--accent);
-      color: white;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-glow);
-    }
+    .step-content { display: none; animation: fadeIn 0.3s ease; }
+    .step-content.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    .step-indicator .step.completed .step-number {
-      background: var(--success);
-      color: white;
-      border-color: var(--success);
+    .form-group { margin-bottom: 24px; }
+    label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+    input[type="text"], input[type="email"], textarea {
+      width: 100%; padding: 12px 16px; background: var(--input-bg);
+      border: 1px solid var(--input-border); border-radius: 8px;
+      color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; transition: all 0.2s ease;
     }
-
-    .step-indicator .step-label {
-      font-size: 12px;
-      color: var(--text-muted);
-      text-align: center;
-    }
-
-    .step-indicator .step.active .step-label {
-      color: var(--accent);
-      font-weight: 600;
-    }
-
-    .step-indicator .step.completed .step-label {
-      color: var(--success);
-      font-weight: 600;
-    }
-
-    .step-connector {
-      flex: 1;
-      height: 2px;
-      background: var(--border);
-      margin: 0 -8px;
-      margin-top: 20px;
-    }
-
-    .step-connector.active {
-      background: var(--accent);
-    }
-
-    .step-content {
-      display: none;
-      animation: fadeIn 0.3s ease;
-    }
-
-    .step-content.active {
-      display: block;
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .form-group {
-      margin-bottom: 24px;
-    }
-
-    label {
-      display: block;
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 8px;
-      color: var(--text);
-    }
-
-    input[type="text"],
-    input[type="email"],
-    input[type="url"],
-    textarea {
-      width: 100%;
-      padding: 12px 16px;
-      background: var(--input-bg);
-      border: 1px solid var(--input-border);
-      border-radius: 8px;
-      color: var(--text);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 14px;
-      transition: all 0.2s ease;
-    }
-
-    input[type="text"]:focus,
-    input[type="email"]:focus,
-    input[type="url"]:focus,
-    textarea:focus {
-      outline: none;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-glow);
-    }
-
-    .form-helper {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 6px;
-    }
-
-    .form-helper a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-
-    .form-helper a:hover {
-      text-decoration: underline;
-    }
-
-    textarea {
-      resize: vertical;
-      min-height: 100px;
-    }
+    input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .form-helper { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+    textarea { resize: vertical; min-height: 100px; }
 
     .btn {
-      padding: 12px 32px;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      text-decoration: none;
+      padding: 12px 32px; border: none; border-radius: 8px; font-size: 14px;
+      font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+      display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-family: inherit;
     }
+    .btn-primary { background: var(--accent); color: white; width: 100%; justify-content: center; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px var(--accent-glow); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); width: 48%; justify-content: center; }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .button-group { display: flex; gap: 12px; justify-content: space-between; margin-top: 32px; }
 
-    .btn-primary {
-      background: var(--accent);
-      color: white;
-      width: 100%;
-      justify-content: center;
-    }
+    .step-title { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .step-description { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
 
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px var(--accent-glow);
+    .progress-state { text-align: center; padding: 40px 0; }
+    .progress-state .spinner {
+      width: 48px; height: 48px; border: 4px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 24px;
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .progress-steps { text-align: left; margin-top: 24px; }
+    .progress-step { display: flex; align-items: center; gap: 12px; padding: 10px 0; font-size: 14px; color: var(--text-muted); }
+    .progress-step.active { color: var(--accent); font-weight: 600; }
+    .progress-step.done { color: var(--success); }
+    .progress-step .icon { width: 20px; text-align: center; }
 
-    .btn-secondary {
-      background: var(--bg);
-      color: var(--text);
-      border: 1px solid var(--border);
-      width: 48%;
-    }
-
-    .btn-secondary:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .button-group {
-      display: flex;
-      gap: 12px;
-      justify-content: space-between;
-      margin-top: 32px;
-    }
-
-    .success-message {
-      background: rgba(16, 185, 129, 0.1);
-      border: 1px solid var(--success);
-      color: var(--success);
-      padding: 16px;
-      border-radius: 8px;
-      margin-bottom: 24px;
-      text-align: center;
-      font-size: 14px;
-    }
-
-    .step-title {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .step-description {
-      color: var(--text-muted);
-      font-size: 14px;
-      margin-bottom: 24px;
-    }
-
-    .loading {
-      opacity: 0.6;
-      pointer-events: none;
-    }
+    .error-msg { background: rgba(239,68,68,0.1); border: 1px solid var(--error); color: var(--error); padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
 
     @media (max-width: 600px) {
-      .wizard-card {
-        padding: 32px 24px;
-      }
-
-      .step-indicator {
-        margin-bottom: 32px;
-      }
-
-      .step-indicator .step-label {
-        display: none;
-      }
-
-      .button-group {
-        flex-direction: column;
-      }
-
-      .btn-secondary {
-        width: 100%;
-      }
+      .wizard-card { padding: 32px 24px; }
+      .step-indicator .step-label { display: none; }
+      .button-group { flex-direction: column; }
+      .btn-secondary { width: 100%; }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="wizard-card">
-      <!-- Header -->
       <div class="wizard-header">
         <div class="wizard-logo">K</div>
         <h1>Welcome to Koldly</h1>
-        <p>Set up your first campaign in minutes</p>
+        <p>Let's set up your AI outreach pipeline in 3 steps</p>
       </div>
 
-      <!-- Step Indicator -->
       <div class="step-indicator">
         <div class="step active" data-step="1">
           <div class="step-number">1</div>
-          <div class="step-label">Company</div>
+          <div class="step-label">Your Product</div>
         </div>
-        <div class="step-connector active"></div>
+        <div class="step-connector"></div>
         <div class="step" data-step="2">
           <div class="step-number">2</div>
-          <div class="step-label">Industry</div>
+          <div class="step-label">Ideal Customer</div>
         </div>
         <div class="step-connector"></div>
         <div class="step" data-step="3">
           <div class="step-number">3</div>
-          <div class="step-label">Message</div>
+          <div class="step-label">Sender Identity</div>
         </div>
       </div>
 
-      <!-- Step 1: Company Info -->
-      <div class="step-content active" data-step="1">
-        <div class="step-title">Tell us about your target</div>
-        <p class="step-description">Who are you reaching out to?</p>
+      <div id="errorMsg" class="error-msg" style="display:none;"></div>
 
+      <!-- Step 1: Product Description -->
+      <div class="step-content active" data-step="1">
+        <div class="step-title">What does your product or service do?</div>
+        <p class="step-description">This helps the AI understand what you sell so it can write relevant outreach.</p>
         <form id="step1Form">
           <div class="form-group">
-            <label for="targetCompany">Target Company Name</label>
-            <input type="text" id="targetCompany" placeholder="e.g., Acme Corp" required>
-            <p class="form-helper">The company you want to target with your campaign</p>
+            <label for="productDescription">Product Description</label>
+            <textarea id="productDescription" placeholder="e.g., We build an AI-powered analytics platform that helps e-commerce brands reduce cart abandonment by 30%. Our customers typically see ROI within 2 weeks." required></textarea>
+            <p class="form-helper">Be specific about what you do, who it's for, and what results you deliver. The more detail, the better the AI writes.</p>
           </div>
-
           <div class="form-group">
-            <label for="targetRole">Decision Maker Role</label>
-            <input type="text" id="targetRole" placeholder="e.g., VP of Marketing" required>
-            <p class="form-helper">The specific job title you're targeting</p>
+            <label for="campaignName">Campaign Name (optional)</label>
+            <input type="text" id="campaignName" placeholder="e.g., Q1 E-commerce Outreach">
+            <p class="form-helper">A name for your first campaign. We'll generate one if you skip this.</p>
           </div>
-
-          <div class="form-group">
-            <label for="targetEmail">Target Email (optional)</label>
-            <input type="email" id="targetEmail" placeholder="e.g., john@acme.com">
-            <p class="form-helper">If you have a specific contact in mind</p>
-          </div>
-
           <div class="button-group">
-            <button type="button" class="btn btn-primary" onclick="nextStep(2)">Continue</button>
+            <button type="button" class="btn btn-primary" onclick="nextStep(2)">Continue →</button>
           </div>
         </form>
       </div>
 
-      <!-- Step 2: Industry -->
+      <!-- Step 2: ICP Description -->
       <div class="step-content" data-step="2">
-        <div class="step-title">What's their industry?</div>
-        <p class="step-description">This helps us research and personalize better</p>
-
+        <div class="step-title">Describe your ideal customer</div>
+        <p class="step-description">Tell the AI who to look for. Be as specific as you can — industry, company size, role, pain points.</p>
         <form id="step2Form">
           <div class="form-group">
-            <label for="industry">Industry Vertical</label>
-            <input type="text" id="industry" placeholder="e.g., SaaS, Tech, Healthcare" required>
-            <p class="form-helper">The industry or sector</p>
+            <label for="icpDescription">Ideal Customer Profile</label>
+            <textarea id="icpDescription" placeholder="e.g., VP of Marketing or Head of Growth at mid-market e-commerce companies (50-500 employees, $5M-$50M revenue). They're struggling with cart abandonment rates above 70% and have tried retargeting ads without success. Based in the US or UK." required></textarea>
+            <p class="form-helper">Include: job titles, industries, company size, geography, pain points. The AI uses this to find and research matching prospects.</p>
           </div>
-
-          <div class="form-group">
-            <label for="companySize">Company Size (optional)</label>
-            <input type="text" id="companySize" placeholder="e.g., 100-500 employees">
-          </div>
-
-          <div class="form-group">
-            <label for="location">Location (optional)</label>
-            <input type="text" id="location" placeholder="e.g., San Francisco, CA">
-          </div>
-
           <div class="button-group">
             <button type="button" class="btn btn-secondary" onclick="prevStep(1)">← Back</button>
-            <button type="button" class="btn btn-primary" onclick="nextStep(3)" style="width: 48%;">Continue</button>
+            <button type="button" class="btn btn-primary" onclick="nextStep(3)" style="width:48%;">Continue →</button>
           </div>
         </form>
       </div>
 
-      <!-- Step 3: Message -->
+      <!-- Step 3: Sender Identity -->
       <div class="step-content" data-step="3">
-        <div class="step-title">Craft your message</div>
-        <p class="step-description">What's your value proposition?</p>
-
+        <div class="step-title">Your sending identity</div>
+        <p class="step-description">Emails will appear to come from you. Enter the name and email prospects will see.</p>
         <form id="step3Form">
           <div class="form-group">
-            <label for="value">Your Value Prop</label>
-            <textarea id="value" placeholder="What specific problem do you solve? Be concise..." required></textarea>
-            <p class="form-helper">What problem do you solve for them?</p>
+            <label for="senderName">Your Name</label>
+            <input type="text" id="senderName" placeholder="e.g., Sarah Chen" required>
           </div>
-
           <div class="form-group">
-            <label for="result">Expected Outcome (optional)</label>
-            <textarea id="result" placeholder="e.g., 30% increase in conversions, reduced churn"></textarea>
-            <p class="form-helper">What should they expect if they work with you?</p>
+            <label for="senderEmail">Your Email</label>
+            <input type="email" id="senderEmail" placeholder="e.g., sarah@yourcompany.com" required>
+            <p class="form-helper">This is the reply-to address prospects will see. Use a real email you monitor.</p>
           </div>
-
-          <div class="form-group">
-            <label for="cta">Call to Action</label>
-            <input type="text" id="cta" placeholder="e.g., Schedule a 15-min call" required>
-            <p class="form-helper">What do you want them to do?</p>
-          </div>
-
           <div class="button-group">
             <button type="button" class="btn btn-secondary" onclick="prevStep(2)">← Back</button>
-            <button type="button" class="btn btn-primary" onclick="submitOnboarding()" style="width: 48%;">Create Campaign</button>
+            <button type="button" class="btn btn-primary" id="launchBtn" onclick="submitOnboarding()" style="width:48%;">Launch Pipeline →</button>
           </div>
         </form>
+      </div>
+
+      <!-- Progress State -->
+      <div class="step-content" data-step="progress">
+        <div class="progress-state">
+          <div class="spinner"></div>
+          <div class="step-title">Setting up your pipeline...</div>
+          <p class="step-description">This takes about 2-3 minutes. You can wait or check your queue shortly.</p>
+          <div class="progress-steps">
+            <div class="progress-step active" id="prog-create"><span class="icon">⏳</span> Creating campaign...</div>
+            <div class="progress-step" id="prog-discover"><span class="icon">○</span> Discovering prospects...</div>
+            <div class="progress-step" id="prog-ready"><span class="icon">○</span> Preparing approval queue...</div>
+          </div>
+          <div class="button-group" style="margin-top:32px;">
+            <button type="button" class="btn btn-primary" onclick="window.location.href='/queue'" id="goToQueueBtn" disabled>Go to Approval Queue</button>
+          </div>
+        </div>
       </div>
 
       <!-- Success State -->
       <div class="step-content" data-step="success">
-        <div class="success-message">
-          ✓ Campaign created successfully!
+        <div style="text-align:center; padding:40px 0;">
+          <div style="font-size:48px; margin-bottom:16px;">🚀</div>
+          <div class="step-title">Your pipeline is running!</div>
+          <p class="step-description">Koldly is finding prospects and drafting emails. Head to your approval queue to review them as they come in.</p>
+          <button type="button" class="btn btn-primary" onclick="window.location.href='/queue'" style="margin-top:24px;">Go to Approval Queue →</button>
         </div>
-        <div style="text-align: center; margin: 40px 0;">
-          <div class="step-title">🎉 You're all set!</div>
-          <p class="step-description">Your first campaign is ready to go</p>
-        </div>
-        <button type="button" class="btn btn-primary" onclick="window.location.href='/dashboard'">
-          Go to Dashboard
-        </button>
       </div>
     </div>
   </div>
 
   <script>
+    const token = localStorage.getItem('auth_token');
+    if (!token) window.location.href = '/signup?redirect=/onboarding';
+
     let currentStep = 1;
 
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = msg;
+      el.style.display = 'block';
+      setTimeout(() => { el.style.display = 'none'; }, 5000);
+    }
+
     function nextStep(step) {
-      if (step === 2 && !validateStep1()) return;
-      if (step === 3 && !validateStep2()) return;
-
+      if (step === 2) {
+        const desc = document.getElementById('productDescription').value.trim();
+        if (!desc) { showError('Please describe your product or service.'); return; }
+        if (desc.length < 20) { showError('Please provide a more detailed description (at least 20 characters).'); return; }
+      }
+      if (step === 3) {
+        const icp = document.getElementById('icpDescription').value.trim();
+        if (!icp) { showError('Please describe your ideal customer.'); return; }
+        if (icp.length < 20) { showError('Please provide more detail about your ideal customer.'); return; }
+      }
       currentStep = step;
       updateStepUI();
     }
 
-    function prevStep(step) {
-      currentStep = step;
-      updateStepUI();
-    }
+    function prevStep(step) { currentStep = step; updateStepUI(); }
 
     function updateStepUI() {
-      // Update content
-      document.querySelectorAll('.step-content').forEach(el => {
-        el.classList.remove('active');
-      });
-      document.querySelector(`[data-step="${currentStep}"].step-content`)?.classList.add('active');
+      document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+      const target = document.querySelector(`.step-content[data-step="${currentStep}"]`);
+      if (target) target.classList.add('active');
 
-      // Update indicator
-      document.querySelectorAll('.step').forEach((el, idx) => {
+      document.querySelectorAll('.step-indicator .step').forEach((el, idx) => {
         const stepNum = idx + 1;
         el.classList.remove('active', 'completed');
-
-        if (stepNum === currentStep) {
-          el.classList.add('active');
-        } else if (stepNum < currentStep) {
-          el.classList.add('completed');
-        }
+        if (stepNum === currentStep) el.classList.add('active');
+        else if (stepNum < currentStep) el.classList.add('completed');
       });
 
-      // Update connectors
       document.querySelectorAll('.step-connector').forEach((el, idx) => {
-        if (idx + 1 < currentStep) {
-          el.classList.add('active');
-        } else {
-          el.classList.remove('active');
-        }
+        el.classList.toggle('active', idx + 1 < currentStep);
       });
-    }
 
-    function validateStep1() {
-      const target = document.getElementById('targetCompany').value;
-      const role = document.getElementById('targetRole').value;
-
-      if (!target || !role) {
-        alert('Please fill in the required fields');
-        return false;
-      }
-      return true;
-    }
-
-    function validateStep2() {
-      const industry = document.getElementById('industry').value;
-      if (!industry) {
-        alert('Please select an industry');
-        return false;
-      }
-      return true;
+      document.getElementById('errorMsg').style.display = 'none';
     }
 
     async function submitOnboarding() {
-      if (!validateStep2()) return;
+      const senderName = document.getElementById('senderName').value.trim();
+      const senderEmail = document.getElementById('senderEmail').value.trim();
+      if (!senderName || !senderEmail) { showError('Please fill in your name and email.'); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) { showError('Please enter a valid email address.'); return; }
 
-      const valueProp = document.getElementById('value').value;
-      const cta = document.getElementById('cta').value;
+      const btn = document.getElementById('launchBtn');
+      btn.disabled = true;
+      btn.textContent = 'Setting up...';
 
-      if (!valueProp || !cta) {
-        alert('Please fill in the required fields');
-        return false;
-      }
+      currentStep = 'progress';
+      updateStepUI();
 
       try {
-        const response = await fetch('/api/campaigns', {
+        const response = await fetch('/api/onboarding/complete', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({
-            name: document.getElementById('targetCompany').value,
-            description: document.getElementById('value').value,
-            target_role: document.getElementById('targetRole').value,
-            industry: document.getElementById('industry').value,
-            company_size: document.getElementById('companySize').value || null,
-            location: document.getElementById('location').value || null,
-            expected_outcome: document.getElementById('result').value || null,
-            cta: document.getElementById('cta').value
+            product_description: document.getElementById('productDescription').value.trim(),
+            icp_description: document.getElementById('icpDescription').value.trim(),
+            sender_name: senderName,
+            sender_email: senderEmail,
+            campaign_name: document.getElementById('campaignName').value.trim() || undefined
           })
         });
 
-        if (response.ok) {
-          currentStep = 'success';
-          updateStepUI();
-        } else {
-          const error = await response.json();
-          alert('Error: ' + (error.error || 'Failed to create campaign'));
-        }
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || 'Failed to set up pipeline');
+
+        document.getElementById('prog-create').classList.replace('active', 'done');
+        document.getElementById('prog-create').querySelector('.icon').textContent = '✓';
+        document.getElementById('prog-discover').classList.add('active');
+        document.getElementById('prog-discover').querySelector('.icon').textContent = '⏳';
+
+        setTimeout(() => {
+          document.getElementById('prog-discover').classList.replace('active', 'done');
+          document.getElementById('prog-discover').querySelector('.icon').textContent = '✓';
+          document.getElementById('prog-ready').classList.add('active');
+          document.getElementById('prog-ready').querySelector('.icon').textContent = '⏳';
+          document.getElementById('goToQueueBtn').disabled = false;
+        }, 3000);
+
+        setTimeout(() => { currentStep = 'success'; updateStepUI(); }, 6000);
       } catch (err) {
-        console.error('Submission error:', err);
-        alert('Network error: ' + err.message);
+        currentStep = 3;
+        updateStepUI();
+        btn.disabled = false;
+        btn.textContent = 'Launch Pipeline →';
+        showError(err.message || 'Something went wrong. Please try again.');
       }
     }
 
-    // Initialize
     updateStepUI();
   </script>
 </body>

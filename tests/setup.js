@@ -6,7 +6,8 @@
 // Set test environment
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-secret-key-do-not-use-in-production';
-process.env.OPENAI_API_KEY = 'sk-test-key';
+process.env.ANTHROPIC_API_KEY = 'sk-ant-test-key';
+process.env.STRIPE_SECRET_KEY = '';
 process.env.PORT = 3001;
 
 // Silence logs during tests (unless DEBUG is set)

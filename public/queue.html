@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Koldly Approval Queue - Review and approve AI-generated emails and reply drafts.">
+    <meta name="theme-color" content="#FF6B35">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23FF6B35' width='100' height='100' rx='20'/><text x='50' y='70' font-size='60' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial'>K</text></svg>">
+    <title>Approval Queue - Koldly</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0A0A0A; --bg-card: #141414; --bg-card-hover: #1A1A1A;
+            --accent: #FF6B35; --accent-glow: rgba(255, 107, 53, 0.15);
+            --text: #F5F5F5; --text-muted: #888; --border: #222;
+            --input-bg: #0F0F0F; --input-border: #333;
+            --success: #10B981; --error: #EF4444; --warning: #F59E0B; --info: #3B82F6;
+        }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+
+        .topbar { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: var(--bg-card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+        .topbar-left { display: flex; align-items: center; gap: 16px; }
+        .topbar-logo { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; color: var(--accent); text-decoration: none; }
+        .topbar-right { display: flex; align-items: center; gap: 12px; }
+
+        .main-layout { display: flex; }
+        .sidebar { width: 240px; background: var(--bg-card); border-right: 1px solid var(--border); padding: 20px 0; min-height: calc(100vh - 60px); }
+        .sidebar-section { padding: 0 12px 16px 12px; }
+        .sidebar-title { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; padding: 12px; letter-spacing: 0.5px; }
+        .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 12px; color: var(--text-muted); text-decoration: none; border-radius: 8px; transition: all 0.2s; font-size: 14px; }
+        .sidebar-item:hover { background: var(--bg-card-hover); color: var(--text); }
+        .sidebar-item.active { background: var(--accent-glow); color: var(--accent); font-weight: 600; }
+        .sidebar-icon { font-size: 18px; width: 24px; text-align: center; }
+        .sidebar-badge { background: var(--accent); color: white; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: auto; }
+
+        .content { flex: 1; max-width: 1200px; margin: 0 auto; padding: 32px 24px; overflow-y: auto; max-height: calc(100vh - 60px); }
+        .page-header { margin-bottom: 24px; }
+        .page-header h1 { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+        .page-header p { color: var(--text-muted); font-size: 14px; }
+
+        .queue-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+        .queue-tab { padding: 8px 16px; border-radius: 8px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+        .queue-tab:hover { border-color: var(--accent); color: var(--text); }
+        .queue-tab.active { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
+        .queue-tab .count { font-weight: 700; margin-left: 4px; }
+
+        .queue-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .bulk-actions { display: flex; gap: 8px; align-items: center; }
+        .btn { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; font-family: inherit; }
+        .btn:hover { border-color: var(--accent); }
+        .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-success { background: var(--success); border-color: var(--success); color: white; }
+        .btn-danger { background: transparent; border-color: var(--error); color: var(--error); }
+        .btn-danger:hover { background: var(--error); color: white; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .select-all { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; }
+        .select-all input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+        .queue-list { display: flex; flex-direction: column; gap: 12px; }
+
+        .queue-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; transition: all 0.2s; position: relative; }
+        .queue-card:hover { border-color: rgba(255, 107, 53, 0.3); }
+        .queue-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .card-meta { display: flex; align-items: center; gap: 12px; }
+        .card-checkbox { accent-color: var(--accent); width: 18px; height: 18px; cursor: pointer; }
+        .card-type { font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; }
+        .card-type.email { background: rgba(59, 130, 246, 0.15); color: var(--info); }
+        .card-type.reply { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .card-company { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px; }
+        .card-campaign { font-size: 12px; color: var(--text-muted); }
+        .card-fit { font-size: 12px; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+        .fit-high { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .fit-medium { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .fit-low { background: rgba(239, 68, 68, 0.15); color: var(--error); }
+
+        .card-email { margin: 12px 0; }
+        .card-subject { font-weight: 600; font-size: 14px; margin-bottom: 6px; color: var(--text); }
+        .card-body { font-size: 13px; color: var(--text-muted); line-height: 1.7; white-space: pre-wrap; max-height: 150px; overflow: hidden; position: relative; }
+        .card-body.expanded { max-height: none; }
+        .card-body-toggle { color: var(--accent); cursor: pointer; font-size: 12px; margin-top: 4px; display: inline-block; }
+
+        .card-reply-context { background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+        .card-reply-context .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+        .card-reply-context .text { font-size: 13px; color: var(--text-muted); }
+        .reply-category { font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; }
+        .cat-interested { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+        .cat-objection { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .cat-ooo { background: rgba(59, 130, 246, 0.15); color: var(--info); }
+        .cat-not_interested { background: rgba(239, 68, 68, 0.15); color: var(--error); }
+        .cat-question { background: rgba(168, 85, 247, 0.15); color: #A855F7; }
+
+        .card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+        .card-footer-left { display: flex; gap: 6px; }
+        .card-notes { font-size: 12px; color: var(--text-muted); font-style: italic; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .edit-form { display: none; margin: 12px 0; }
+        .edit-form.active { display: block; }
+        .edit-field { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text); font-family: inherit; font-size: 13px; margin-bottom: 8px; }
+        .edit-field:focus { outline: none; border-color: var(--accent); }
+        textarea.edit-field { min-height: 120px; resize: vertical; }
+
+        .empty-state { text-align: center; padding: 80px 20px; }
+        .empty-icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-title { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+        .empty-text { color: var(--text-muted); font-size: 14px; max-width: 400px; margin: 0 auto; }
+
+        .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+        .spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 10px; color: white; font-size: 14px; font-weight: 500; z-index: 1000; animation: slideIn 0.3s ease; }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--error); }
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .content { padding: 20px 16px; }
+            .card-header { flex-direction: column; gap: 8px; }
+            .card-footer { flex-direction: column; gap: 8px; align-items: flex-start; }
+            .queue-tabs { overflow-x: auto; }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div class="topbar-left">
+            <a href="/dashboard" class="topbar-logo">Koldly</a>
+        </div>
+        <div class="topbar-right">
+            <a href="/settings" style="color: var(--text-muted); text-decoration: none; font-size: 14px;">⚙️</a>
+            <div class="user-avatar" id="userAvatar">K</div>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <nav class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">Main</div>
+                <a href="/queue" class="sidebar-item active">
+                    <span class="sidebar-icon">📋</span> Approval Queue
+                    <span class="sidebar-badge" id="sidebarBadge">0</span>
+                </a>
+                <a href="/dashboard" class="sidebar-item">
+                    <span class="sidebar-icon">📊</span> Dashboard
+                </a>
+                <a href="/campaigns" class="sidebar-item">
+                    <span class="sidebar-icon">📁</span> Campaigns
+                </a>
+                <a href="/pipeline" class="sidebar-item">
+                    <span class="sidebar-icon">🔄</span> Pipeline
+                </a>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">Tools</div>
+                <a href="/inbox" class="sidebar-item">
+                    <span class="sidebar-icon">📥</span> Inbox
+                </a>
+                <a href="/analytics" class="sidebar-item">
+                    <span class="sidebar-icon">📈</span> Analytics
+                </a>
+                <a href="/integrations" class="sidebar-item">
+                    <span class="sidebar-icon">🔗</span> Integrations
+                </a>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">Account</div>
+                <a href="/billing" class="sidebar-item">
+                    <span class="sidebar-icon">💳</span> Billing
+                </a>
+                <a href="/settings" class="sidebar-item">
+                    <span class="sidebar-icon">⚙️</span> Settings
+                </a>
+                <a href="#" class="sidebar-item" onclick="event.preventDefault(); localStorage.removeItem('auth_token'); localStorage.removeItem('user_email'); localStorage.removeItem('user_name'); window.location.href='/';">
+                    <span class="sidebar-icon">🚪</span> Logout
+                </a>
+            </div>
+            <div class="sidebar-section" style="margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border);">
+                <a href="mailto:support@koldly.com" class="sidebar-item" style="font-size: 12px;">
+                    <span class="sidebar-icon">📧</span> support@koldly.com
+                </a>
+            </div>
+        </nav>
+
+        <main class="content">
+            <div class="page-header">
+                <h1>Approval Queue</h1>
+                <p>Review AI-generated emails and reply drafts before they're sent</p>
+            </div>
+
+            <div style="background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px;" id="infoBar">
+                <div style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
+                    <strong style="color: var(--info);">ℹ️ AI-Generated Preview</strong> — Prospects below are AI-generated examples based on your ICP. <strong>They are not real companies.</strong> For real outreach, <button onclick="document.getElementById('csvUpload').click()" style="background:none; border:none; color:var(--accent); cursor:pointer; font-size:13px; text-decoration:underline; font-family:inherit; font-weight:600;">import your own prospects via CSV</button> or verify each prospect before sending.
+                </div>
+                <button onclick="this.parentElement.style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px; flex-shrink:0;">✕</button>
+                <input type="file" id="csvUpload" accept=".csv" style="display:none;" onchange="handleCSVUpload(this)">
+            </div>
+
+            <div class="queue-tabs" id="queueTabs">
+                <button class="queue-tab active" data-type="all">All <span class="count" id="countAll">0</span></button>
+                <button class="queue-tab" data-type="email">Emails <span class="count" id="countEmails">0</span></button>
+                <button class="queue-tab" data-type="reply">Replies <span class="count" id="countReplies">0</span></button>
+            </div>
+
+            <div class="queue-actions" id="queueActions" style="display: none;">
+                <div class="bulk-actions">
+                    <label class="select-all">
+                        <input type="checkbox" id="selectAll"> Select all
+                    </label>
+                    <button class="btn btn-success btn-sm" id="bulkApproveBtn" disabled>✓ Approve Selected</button>
+                </div>
+                <div style="color: var(--text-muted); font-size: 13px;">
+                    <span id="selectedCount">0</span> selected
+                </div>
+            </div>
+
+            <div id="queueContent">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 12px;">Loading queue...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('auth_token');
+        if (!token) window.location.href = '/login?redirect=/queue';
+
+        const API = (path, opts = {}) => fetch(path, {
+            ...opts,
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...opts.headers }
+        }).then(r => r.json());
+
+        let queueItems = [];
+        let selectedIds = new Set();
+        let currentFilter = 'all';
+
+        // Load queue
+        async function loadQueue() {
+            try {
+                const typeParam = currentFilter === 'all' ? '' : `?type=${currentFilter}`;
+                const data = await API(`/api/queue${typeParam}`);
+
+                if (!data.success) throw new Error(data.error);
+
+                queueItems = data.items || [];
+                updateCounts(data.counts);
+                renderQueue();
+            } catch (err) {
+                document.getElementById('queueContent').innerHTML =
+                    `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Error</div><div class="empty-text">${err.message}</div></div>`;
+            }
+        }
+
+        function updateCounts(counts) {
+            document.getElementById('countAll').textContent = counts.total;
+            document.getElementById('countEmails').textContent = counts.emails;
+            document.getElementById('countReplies').textContent = counts.replies;
+            document.getElementById('sidebarBadge').textContent = counts.total;
+
+            document.getElementById('queueActions').style.display = counts.total > 0 ? 'flex' : 'none';
+        }
+
+        function renderQueue() {
+            const container = document.getElementById('queueContent');
+
+            if (queueItems.length === 0) {
+                // Check if user has campaigns to differentiate empty states
+                API('/api/campaigns?status=active').then(data => {
+                    const hasCampaigns = data.campaigns && data.campaigns.length > 0;
+                    if (hasCampaigns) {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-icon">✅</div>
+                                <div class="empty-title">All caught up!</div>
+                                <div class="empty-text">Your approval queue is clear. New emails and reply drafts will appear here as your campaigns generate them.</div>
+                            </div>`;
+                    } else {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-icon">🚀</div>
+                                <div class="empty-title">No campaigns yet</div>
+                                <div class="empty-text">Create your first campaign to start generating AI-powered outreach emails.</div>
+                                <a href="/campaigns?action=new" style="display:inline-flex; margin-top:16px; padding:10px 20px; background:var(--accent); color:white; border-radius:8px; text-decoration:none; font-weight:600; font-size:14px;">+ Create Campaign</a>
+                            </div>`;
+                    }
+                }).catch(() => {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">✅</div>
+                            <div class="empty-title">Queue is clear!</div>
+                            <div class="empty-text">No items waiting for approval.</div>
+                        </div>`;
+                });
+                return;
+            }
+
+            container.innerHTML = '<div class="queue-list">' + queueItems.map(item =>
+                item.item_type === 'email' ? renderEmailCard(item) : renderReplyCard(item)
+            ).join('') + '</div>';
+        }
+
+        function renderEmailCard(item) {
+            const fitClass = item.fit_score >= 70 ? 'fit-high' : item.fit_score >= 40 ? 'fit-medium' : 'fit-low';
+            const isSelected = selectedIds.has(`email-${item.id}`);
+            return `
+            <div class="queue-card ${isSelected ? 'selected' : ''}" id="card-email-${item.id}">
+                <div class="card-header">
+                    <div class="card-meta">
+                        <input type="checkbox" class="card-checkbox" data-type="email" data-id="${item.id}" ${isSelected ? 'checked' : ''} onchange="toggleSelect('email', ${item.id})">
+                        <span class="card-type email">📧 Email</span>
+                        <span class="card-company">${esc(item.company_name)}</span>
+                        <span class="card-campaign">${esc(item.campaign_name)}</span>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        ${item.fit_score ? `<span class="card-fit ${fitClass}">${item.fit_score}% fit</span>` : ''}
+                        <span style="color:var(--text-muted); font-size:12px;">${timeAgo(item.created_at)}</span>
+                    </div>
+                </div>
+                <div class="card-email">
+                    <div class="card-subject">Subject: ${esc(item.subject_line)}</div>
+                    <div class="card-body" id="body-email-${item.id}">${esc(item.email_body)}</div>
+                    <span class="card-body-toggle" onclick="toggleBody('email-${item.id}')">Show more ▼</span>
+                </div>
+                <div class="edit-form" id="edit-email-${item.id}">
+                    <input class="edit-field" id="editSubject-${item.id}" value="${esc(item.subject_line)}" placeholder="Subject line">
+                    <textarea class="edit-field" id="editBody-${item.id}" placeholder="Email body">${esc(item.email_body)}</textarea>
+                    <div style="display:flex; gap:8px; margin-top:8px;">
+                        <button class="btn btn-success btn-sm" onclick="editApproveEmail(${item.id})">Save & Approve</button>
+                        <button class="btn btn-sm" onclick="cancelEdit('email-${item.id}')">Cancel</button>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="card-footer-left">
+                        <button class="btn btn-success btn-sm" onclick="approveEmail(${item.id})">✓ Approve</button>
+                        <button class="btn btn-sm" onclick="showEdit('email-${item.id}')">✎ Edit</button>
+                        <button class="btn btn-sm" onclick="regenerateEmail(${item.id})">🔄 Regenerate</button>
+                        <button class="btn btn-danger btn-sm" onclick="rejectEmail(${item.id})">✗ Reject</button>
+                    </div>
+                    <div class="card-notes">${item.personalization_notes ? esc(item.personalization_notes) : ''}</div>
+                </div>
+            </div>`;
+        }
+
+        function renderReplyCard(item) {
+            const catClass = `cat-${item.reply_category || 'interested'}`;
+            const isSelected = selectedIds.has(`reply-${item.id}`);
+            return `
+            <div class="queue-card ${isSelected ? 'selected' : ''}" id="card-reply-${item.id}">
+                <div class="card-header">
+                    <div class="card-meta">
+                        <input type="checkbox" class="card-checkbox" data-type="reply" data-id="${item.id}" ${isSelected ? 'checked' : ''} onchange="toggleSelect('reply', ${item.id})">
+                        <span class="card-type reply">💬 Reply Draft</span>
+                        <span class="card-company">${esc(item.company_name)}</span>
+                        <span class="reply-category ${catClass}">${esc(item.reply_category || 'pending')}</span>
+                    </div>
+                    <span style="color:var(--text-muted); font-size:12px;">${timeAgo(item.created_at)}</span>
+                </div>
+                ${item.original_body ? `
+                <div class="card-reply-context">
+                    <div class="label">Their Reply</div>
+                    <div class="text">${esc(item.original_body).substring(0, 300)}${item.original_body.length > 300 ? '...' : ''}</div>
+                </div>` : ''}
+                <div class="card-email">
+                    <div class="card-subject">Draft: ${esc(item.draft_subject || '')}</div>
+                    <div class="card-body" id="body-reply-${item.id}">${esc(item.draft_body)}</div>
+                </div>
+                <div class="edit-form" id="edit-reply-${item.id}">
+                    <input class="edit-field" id="editReplySubject-${item.id}" value="${esc(item.draft_subject || '')}" placeholder="Subject">
+                    <textarea class="edit-field" id="editReplyBody-${item.id}" placeholder="Reply body">${esc(item.draft_body)}</textarea>
+                    <div style="display:flex; gap:8px; margin-top:8px;">
+                        <button class="btn btn-success btn-sm" onclick="editApproveReply(${item.id})">Save & Approve</button>
+                        <button class="btn btn-sm" onclick="cancelEdit('reply-${item.id}')">Cancel</button>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="card-footer-left">
+                        <button class="btn btn-success btn-sm" onclick="approveReply(${item.id})">✓ Approve</button>
+                        <button class="btn btn-sm" onclick="showEdit('reply-${item.id}')">✎ Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="rejectReply(${item.id})">✗ Reject</button>
+                    </div>
+                    <div class="card-notes">${esc(item.campaign_name)}</div>
+                </div>
+            </div>`;
+        }
+
+        // Actions
+        async function approveEmail(id) {
+            try {
+                await API(`/api/queue/emails/${id}/approve`, { method: 'POST' });
+                toast('Email approved ✓', 'success');
+                removeCard(`email-${id}`);
+            } catch (err) { toast(err.message, 'error'); }
+        }
+
+        async function rejectEmail(id) {
+            const reason = prompt('Rejection reason (optional):');
+            if (reason === null) return;
+            try {
+                await API(`/api/queue/emails/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) });
+                toast('Email rejected', 'success');
+                removeCard(`email-${id}`);
+            } catch (err) { toast(err.message, 'error'); }
+        }
+
+        async function regenerateEmail(id) {
+            const feedback = prompt('Feedback for regeneration (optional):');
+            if (feedback === null) return;
+            try {
+                toast('Regenerating...', 'success');
+                await API(`/api/emails/${id}/regenerate`, { method: 'POST', body: JSON.stringify({ feedback }) });
+                toast('Email regenerated ✓', 'success');
+                loadQueue();
+            } catch (err) { toast(err.message, 'error'); }
+        }
+
+        async function editApproveEmail(id) {
+            const subject = document.getElementById(`editSubject-${id}`).value;
+            const body = document.getElementById(`editBody-${id}`).value;
+            try {
+                await API(`/api/queue/emails/${id}/edit-approve`, { method: 'POST', body: JSON.stringify({ subject, body }) });
+                toast('Email edited & approved ✓', 'success');
+                removeCard(`email-${id}`);
+            } catch (err) { toast(err.message, 'error'); }
+        }
+
+        async function approveReply(id) {
+            try {
+                await API(`/api/queue/replies/${id}/approve`, { method: 'POST' });
+                toast('Reply approved ✓', 'success');
+                removeCard(`reply-${id}`);
+            } catch (err) { toast(err.message, 'error'); }
+        }
+
+        async function rejectReply(id) {
+            const reason = prompt('Rejection reason (optional):');
+            if (reason === null) return;
+            try {
+                await API(`/api/queue/replies/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) });
+                toast('Reply rejected', 'success');
+                removeCard(`reply-${id}`);
+            } catch (err) { toast(err.message, 'error'); }
+        }
+
+        async function editApproveReply(id) {
+            const subject = document.getElementById(`editReplySubject-${id}`).value;
+            const body = document.getElementById(`editReplyBody-${id}`).value;
+            try {
+                await API(`/api/queue/replies/${id}/edit-approve`, { method: 'POST', body: JSON.stringify({ subject, body }) });
+                toast('Reply edited & approved ✓', 'success');
+                removeCard(`reply-${id}`);
+            } catch (err) { toast(err.message, 'error'); }
+        }
+
+        async function bulkApprove() {
+            const emailIds = [];
+            selectedIds.forEach(key => { if (key.startsWith('email-')) emailIds.push(parseInt(key.split('-')[1])); });
+            if (emailIds.length === 0) return;
+            try {
+                await API('/api/queue/emails/bulk-approve', { method: 'POST', body: JSON.stringify({ email_ids: emailIds }) });
+                toast(`${emailIds.length} emails approved ✓`, 'success');
+                selectedIds.clear();
+                loadQueue();
+            } catch (err) { toast(err.message, 'error'); }
+        }
+
+        // UI helpers
+        function removeCard(key) {
+            const card = document.getElementById(`card-${key}`);
+            if (card) {
+                card.style.opacity = '0';
+                card.style.transform = 'translateX(20px)';
+                card.style.transition = 'all 0.3s';
+                setTimeout(() => { card.remove(); loadQueue(); }, 300);
+            }
+        }
+
+        function toggleSelect(type, id) {
+            const key = `${type}-${id}`;
+            if (selectedIds.has(key)) selectedIds.delete(key);
+            else selectedIds.add(key);
+            updateSelection();
+        }
+
+        function updateSelection() {
+            document.getElementById('selectedCount').textContent = selectedIds.size;
+            document.getElementById('bulkApproveBtn').disabled = selectedIds.size === 0;
+            document.querySelectorAll('.queue-card').forEach(card => {
+                const id = card.id.replace('card-', '');
+                card.classList.toggle('selected', selectedIds.has(id));
+            });
+        }
+
+        function showEdit(key) {
+            document.getElementById(`edit-${key}`).classList.add('active');
+        }
+
+        function cancelEdit(key) {
+            document.getElementById(`edit-${key}`).classList.remove('active');
+        }
+
+        function toggleBody(key) {
+            const body = document.getElementById(`body-${key}`);
+            body.classList.toggle('expanded');
+        }
+
+        function esc(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function timeAgo(date) {
+            const seconds = Math.floor((Date.now() - new Date(date)) / 1000);
+            if (seconds < 60) return 'just now';
+            if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+            return Math.floor(seconds / 86400) + 'd ago';
+        }
+
+        function toast(msg, type = 'success') {
+            const el = document.createElement('div');
+            el.className = `toast ${type}`;
+            el.textContent = msg;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        // CSV import handler
+        async function handleCSVUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            // Ask which campaign to import into
+            let campaigns;
+            try {
+                const data = await API('/api/campaigns');
+                campaigns = data.campaigns || [];
+            } catch (err) { toast('Failed to load campaigns', 'error'); return; }
+
+            if (campaigns.length === 0) { toast('Create a campaign first', 'error'); return; }
+
+            const campaignId = campaigns.length === 1
+                ? campaigns[0].id
+                : parseInt(prompt(`Which campaign? Enter ID:\n${campaigns.map(c => `${c.id}: ${c.name}`).join('\n')}`));
+            if (!campaignId) return;
+
+            const text = await file.text();
+            const lines = text.split('\n').filter(l => l.trim());
+            if (lines.length < 2) { toast('CSV must have a header row and at least one data row', 'error'); return; }
+
+            const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/["']/g, ''));
+            const emailIdx = headers.findIndex(h => h === 'email' || h === 'email_address' || h === 'e-mail');
+            if (emailIdx === -1) { toast('CSV must have an "email" column', 'error'); return; }
+
+            const prospects = lines.slice(1).map(line => {
+                const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+                const prospect = {};
+                headers.forEach((h, i) => { prospect[h] = cols[i] || null; });
+                return prospect;
+            }).filter(p => p.email);
+
+            if (prospects.length === 0) { toast('No valid prospects found in CSV', 'error'); return; }
+
+            try {
+                const result = await API(`/api/campaigns/${campaignId}/import-prospects`, {
+                    method: 'POST',
+                    body: JSON.stringify({ prospects })
+                });
+                toast(`Imported ${result.imported} prospects (${result.skipped} skipped)`, 'success');
+            } catch (err) { toast(err.message || 'Import failed', 'error'); }
+
+            input.value = '';
+        }
+
+        // Tab switching
+        document.getElementById('queueTabs').addEventListener('click', e => {
+            const tab = e.target.closest('.queue-tab');
+            if (!tab) return;
+            document.querySelectorAll('.queue-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            currentFilter = tab.dataset.type === 'all' ? 'all' : tab.dataset.type;
+            loadQueue();
+        });
+
+        // Select all
+        document.getElementById('selectAll').addEventListener('change', function() {
+            if (this.checked) {
+                queueItems.forEach(item => selectedIds.add(`${item.item_type === 'reply_draft' ? 'reply' : 'email'}-${item.id}`));
+            } else {
+                selectedIds.clear();
+            }
+            renderQueue();
+            updateSelection();
+        });
+
+        // Bulk approve
+        document.getElementById('bulkApproveBtn').addEventListener('click', bulkApprove);
+
+        // Init
+        loadQueue();
+        // Auto-refresh every 30s
+        setInterval(loadQueue, 30000);
+    </script>
+</body>
+</html>

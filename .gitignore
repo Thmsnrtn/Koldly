@@ -1,11 +1,17 @@
 node_modules/
 .env
+.env.*
 .DS_Store
 
-# Polsia test fixtures (auto-injected, do not commit)
-test-fixtures/
-# Polsia safety (auto-injected, do not commit)
-.env.*
+# Build artifacts & caches
+stats-cache.json
+*.backup.*
+
+# IDE / tools
 .claude/
 projects/
 *.jsonl
+shell-snapshots/
+
+# Test fixtures
+test-fixtures/

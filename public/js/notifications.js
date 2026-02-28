@@ -30,11 +30,11 @@ class NotificationManager {
         style.id = 'notification-styles';
         style.textContent = `
           .notification {
-            background: white;
+            background: #1A1A1A;
             border-radius: 8px;
             padding: 16px 20px;
             margin-bottom: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
             display: flex;
             align-items: center;
             gap: 12px;
@@ -42,6 +42,7 @@ class NotificationManager {
             pointer-events: auto;
             animation: slideIn 0.3s ease-out;
             min-height: 44px;
+            border: 1px solid #333;
           }
 
           @keyframes slideIn {
@@ -81,13 +82,13 @@ class NotificationManager {
 
           .notification-title {
             font-weight: 600;
-            color: #333;
+            color: #F5F5F5;
             font-size: 14px;
             margin: 0;
           }
 
           .notification-message {
-            color: #666;
+            color: #A0A0A0;
             font-size: 13px;
             margin: 4px 0 0 0;
           }
@@ -95,7 +96,7 @@ class NotificationManager {
           .notification-close {
             background: none;
             border: none;
-            color: #999;
+            color: #666;
             cursor: pointer;
             font-size: 20px;
             padding: 0;
@@ -109,7 +110,7 @@ class NotificationManager {
           }
 
           .notification-close:hover {
-            color: #333;
+            color: #F5F5F5;
           }
 
           /* Notification types */

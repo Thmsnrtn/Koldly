@@ -379,6 +379,14 @@
         <div id="planInfo" class="loading">Loading plan information...</div>
       </div>
 
+      <!-- Usage Meters -->
+      <div class="card">
+        <h2>Usage This Month</h2>
+        <div id="usageMeters" class="loading">Loading usage...</div>
+      </div>
+    </div>
+
+    <div class="content-grid">
       <!-- Quick Actions -->
       <div class="card">
         <h2>Quick Actions</h2>
@@ -386,11 +394,17 @@
           <button class="btn btn-primary" onclick="openStripePortal()">Manage Payment Method</button>
         </div>
         <div class="action-group">
-          <button class="btn btn-primary" onclick="openStripePortal()">View All Invoices</button>
-        </div>
-        <div class="action-group">
           <button class="btn btn-secondary" onclick="openStripePortal()">Change Plan</button>
         </div>
+        <div class="action-group">
+          <a href="/pricing" class="btn btn-secondary" style="text-align:center; text-decoration:none; display:block;">View All Plans</a>
+        </div>
+      </div>
+
+      <div class="card" style="display:flex; flex-direction:column; justify-content:center;">
+        <h2>Need More?</h2>
+        <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 16px;">Upgrade your plan to get more prospects, campaigns, and AI budget.</p>
+        <a href="/pricing" class="btn btn-primary" style="text-align:center; text-decoration:none;">Upgrade Plan</a>
       </div>
     </div>
 
@@ -441,8 +455,8 @@
     })
     .then(r => r.json())
     .then(data => {
-      if (data.success) {
-        const planInfo = document.getElementById('planInfo');
+      const planInfo = document.getElementById('planInfo');
+      if (data.success && data.plan) {
         planInfo.innerHTML = `
           <div class="plan-info">
             <div class="plan-details">
@@ -468,10 +482,72 @@
             <span class="info-value">${new Date(data.plan.renewalDate).toLocaleDateString()}</span>
           </div>
         `;
+      } else {
+        planInfo.innerHTML = `
+          <div style="text-align:center; padding:20px;">
+            <p style="font-size:16px; margin-bottom:12px; color: var(--text);">No active subscription</p>
+            <p style="color:var(--text-muted); font-size:14px; margin-bottom:16px;">Choose a plan to get started with Koldly.</p>
+            <a href="/pricing" class="btn btn-primary" style="text-decoration:none; display:inline-block;">View Plans</a>
+          </div>
+        `;
       }
     })
     .catch(err => {
-      document.getElementById('planInfo').innerHTML = `<div class="error">Failed to load plan information</div>`;
+      document.getElementById('planInfo').innerHTML = `
+        <div style="text-align:center; padding:20px;">
+          <p style="font-size:16px; margin-bottom:12px; color: var(--text);">No active subscription</p>
+          <p style="color:var(--text-muted); font-size:14px; margin-bottom:16px;">Choose a plan to unlock all features.</p>
+          <a href="/pricing" class="btn btn-primary" style="text-decoration:none; display:inline-block;">View Plans</a>
+        </div>
+      `;
+    });
+
+    // Load usage meters
+    fetch('/api/billing/usage', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        const el = document.getElementById('usageMeters');
+        const pPct = data.prospects.limit > 0 ? Math.min(100, Math.round((data.prospects.used / data.prospects.limit) * 100)) : 0;
+        const cPct = data.campaigns.limit > 0 ? Math.min(100, Math.round((data.campaigns.used / data.campaigns.limit) * 100)) : 0;
+        const aPct = data.ai_budget.budget_cents > 0 ? Math.min(100, Math.round((data.ai_budget.used_cents / data.ai_budget.budget_cents) * 100)) : 0;
+        const unlimitedCampaigns = data.campaigns.limit === -1;
+
+        el.innerHTML = `
+          <div style="margin-bottom: 20px;">
+            <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:6px;">
+              <span>Prospects</span>
+              <span style="color:var(--text-muted);">${data.prospects.used} / ${data.prospects.limit}</span>
+            </div>
+            <div style="background:var(--border); border-radius:4px; height:8px; overflow:hidden;">
+              <div style="background:${pPct > 90 ? '#EF4444' : pPct > 70 ? 'var(--warning)' : 'var(--success)'}; height:100%; width:${pPct}%; border-radius:4px; transition:width 0.3s;"></div>
+            </div>
+          </div>
+          <div style="margin-bottom: 20px;">
+            <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:6px;">
+              <span>Campaigns</span>
+              <span style="color:var(--text-muted);">${data.campaigns.used}${unlimitedCampaigns ? '' : ' / ' + data.campaigns.limit}</span>
+            </div>
+            <div style="background:var(--border); border-radius:4px; height:8px; overflow:hidden;">
+              <div style="background:${unlimitedCampaigns ? 'var(--success)' : cPct > 90 ? '#EF4444' : 'var(--success)'}; height:100%; width:${unlimitedCampaigns ? 20 : cPct}%; border-radius:4px; transition:width 0.3s;"></div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:6px;">
+              <span>AI Budget</span>
+              <span style="color:var(--text-muted);">\$${(data.ai_budget.used_cents / 100).toFixed(2)} / \$${(data.ai_budget.budget_cents / 100).toFixed(2)}</span>
+            </div>
+            <div style="background:var(--border); border-radius:4px; height:8px; overflow:hidden;">
+              <div style="background:${aPct > 90 ? '#EF4444' : aPct > 70 ? 'var(--warning)' : 'var(--success)'}; height:100%; width:${aPct}%; border-radius:4px; transition:width 0.3s;"></div>
+            </div>
+          </div>
+        `;
+      }
+    })
+    .catch(err => {
+      document.getElementById('usageMeters').innerHTML = '<div class="error">Failed to load usage data</div>';
     });
 
     // Load invoices

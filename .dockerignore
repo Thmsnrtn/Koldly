@@ -1,0 +1,9 @@
+node_modules
+.git
+.env
+.env.*
+*.md
+tests
+jest.config.js
+debug
+.claude*

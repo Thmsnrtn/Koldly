@@ -239,13 +239,29 @@
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-section">
+                <div class="sidebar-title">Main</div>
                 <div class="sidebar-item" onclick="navigateTo('/dashboard')">
                     <span class="sidebar-icon">📊</span>
                     <span>Dashboard</span>
                 </div>
+                <div class="sidebar-item" onclick="navigateTo('/queue')">
+                    <span class="sidebar-icon">📋</span>
+                    <span>Approval Queue</span>
+                </div>
                 <div class="sidebar-item active" onclick="navigateTo('/campaigns')">
-                    <span class="sidebar-icon">📧</span>
+                    <span class="sidebar-icon">📁</span>
                     <span>Campaigns</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/pipeline')">
+                    <span class="sidebar-icon">🔄</span>
+                    <span>Pipeline</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">Tools</div>
+                <div class="sidebar-item" onclick="navigateTo('/inbox')">
+                    <span class="sidebar-icon">📥</span>
+                    <span>Inbox</span>
                 </div>
                 <div class="sidebar-item" onclick="navigateTo('/analytics')">
                     <span class="sidebar-icon">📈</span>
@@ -257,7 +273,11 @@
                 </div>
             </div>
             <div class="sidebar-section">
-                <div class="sidebar-title">Settings</div>
+                <div class="sidebar-title">Account</div>
+                <div class="sidebar-item" onclick="navigateTo('/billing')">
+                    <span class="sidebar-icon">💳</span>
+                    <span>Billing</span>
+                </div>
                 <div class="sidebar-item" onclick="navigateTo('/settings')">
                     <span class="sidebar-icon">⚙️</span>
                     <span>Settings</span>
@@ -266,6 +286,12 @@
                     <span class="sidebar-icon">🚪</span>
                     <span>Logout</span>
                 </div>
+            </div>
+            <div class="sidebar-section" style="margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border);">
+                <a href="mailto:support@koldly.com" class="sidebar-item" style="font-size: 12px;">
+                    <span class="sidebar-icon">📧</span>
+                    <span>support@koldly.com</span>
+                </a>
             </div>
         </aside>
 
@@ -598,16 +624,54 @@
             } catch (err) { console.error('Restore error:', err); alert('Failed to restore campaign'); }
         }
 
-        async function deleteCampaign(id, name) {
-            if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+        let deleteTargetId = null;
+
+        function deleteCampaign(id, name) {
+            deleteTargetId = id;
+            document.getElementById('deleteConfirmName').textContent = name;
+            document.getElementById('deleteConfirmModal').classList.add('active');
+        }
+
+        function closeDeleteConfirm() {
+            document.getElementById('deleteConfirmModal').classList.remove('active');
+            deleteTargetId = null;
+        }
+
+        async function confirmDelete() {
+            if (!deleteTargetId) return;
             try {
-                const response = await fetch(`/api/campaigns/${id}`, { method: 'DELETE' });
-                if (response.ok) loadCampaigns(currentStatus);
+                const response = await fetch(`/api/campaigns/${deleteTargetId}`, { method: 'DELETE', headers: getAuthHeaders() });
+                if (response.ok) {
+                    closeDeleteConfirm();
+                    if (window.showSuccess) window.showSuccess('Campaign deleted');
+                    loadCampaigns(currentStatus);
+                } else {
+                    if (window.showError) window.showError('Failed to delete campaign');
+                    else alert('Failed to delete campaign');
+                }
+            } catch (err) {
+                console.error('Delete error:', err);
+                if (window.showError) window.showError('Failed to delete campaign');
                 else alert('Failed to delete campaign');
-            } catch (err) { console.error('Delete error:', err); alert('Failed to delete campaign'); }
+            }
         }
 
         loadCampaigns('active');
     </script>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteConfirmModal" class="modal">
+        <div class="modal-content" style="max-width: 420px;">
+            <div class="modal-header">
+                <h2 class="modal-title" style="color: var(--error);">Delete Campaign</h2>
+                <button class="close-btn" onclick="closeDeleteConfirm()">&times;</button>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom: 24px; line-height: 1.6;">Are you sure you want to permanently delete "<strong id="deleteConfirmName" style="color: var(--text);"></strong>"? This action cannot be undone and all associated prospects and emails will be removed.</p>
+            <div class="action-buttons" style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeDeleteConfirm()">Cancel</button>
+                <button class="btn" style="background: var(--error); color: white; border-color: var(--error);" onclick="confirmDelete()">Delete Permanently</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

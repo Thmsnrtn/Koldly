@@ -176,13 +176,29 @@
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-section">
+                <div class="sidebar-title">Main</div>
                 <div class="sidebar-item" onclick="navigateTo('/dashboard')">
                     <span class="sidebar-icon">📊</span>
                     <span>Dashboard</span>
                 </div>
+                <div class="sidebar-item" onclick="navigateTo('/queue')">
+                    <span class="sidebar-icon">📋</span>
+                    <span>Approval Queue</span>
+                </div>
                 <div class="sidebar-item" onclick="navigateTo('/campaigns')">
-                    <span class="sidebar-icon">📧</span>
+                    <span class="sidebar-icon">📁</span>
                     <span>Campaigns</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/pipeline')">
+                    <span class="sidebar-icon">🔄</span>
+                    <span>Pipeline</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">Tools</div>
+                <div class="sidebar-item" onclick="navigateTo('/inbox')">
+                    <span class="sidebar-icon">📥</span>
+                    <span>Inbox</span>
                 </div>
                 <div class="sidebar-item" onclick="navigateTo('/analytics')">
                     <span class="sidebar-icon">📈</span>
@@ -194,7 +210,11 @@
                 </div>
             </div>
             <div class="sidebar-section">
-                <div class="sidebar-title">Settings</div>
+                <div class="sidebar-title">Account</div>
+                <div class="sidebar-item" onclick="navigateTo('/billing')">
+                    <span class="sidebar-icon">💳</span>
+                    <span>Billing</span>
+                </div>
                 <div class="sidebar-item" onclick="navigateTo('/settings')">
                     <span class="sidebar-icon">⚙️</span>
                     <span>Settings</span>
@@ -203,6 +223,12 @@
                     <span class="sidebar-icon">🚪</span>
                     <span>Logout</span>
                 </div>
+            </div>
+            <div class="sidebar-section" style="margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border);">
+                <a href="mailto:support@koldly.com" class="sidebar-item" style="font-size: 12px;">
+                    <span class="sidebar-icon">📧</span>
+                    <span>support@koldly.com</span>
+                </a>
             </div>
         </aside>
 
@@ -214,13 +240,70 @@
 
             <!-- Tabs -->
             <div class="tabs">
-                <button class="tab active" onclick="switchTab(this, 'slack')">Slack</button>
+                <button class="tab active" onclick="switchTab(this, 'csv-import')">CSV Import</button>
+                <button class="tab" onclick="switchTab(this, 'slack')">Slack</button>
                 <button class="tab" onclick="switchTab(this, 'webhooks')">Webhooks</button>
                 <button class="tab" onclick="switchTab(this, 'export')">Export Data</button>
             </div>
 
+            <!-- CSV Import Tab (Active Integration) -->
+            <div id="csv-import" class="tab-content active">
+                <div class="section-card" style="border-color: var(--success);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h2>CSV Import</h2>
+                        <span style="background: rgba(16,185,129,0.15); color: var(--success); padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;">Active</span>
+                    </div>
+                    <p class="section-description">Import your own prospect lists from CSV files. This is the recommended way to add verified prospects to your campaigns.</p>
+                    <div class="form-group">
+                        <label for="importCampaignId">Select Campaign</label>
+                        <select id="importCampaignId" style="width:100%; padding:12px 16px; background:var(--input-bg); border:1px solid var(--input-border); border-radius:8px; color:var(--text); font-size:14px;">
+                            <option value="">Loading campaigns...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Upload CSV File</label>
+                        <div style="border: 2px dashed var(--border); border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s;" onclick="document.getElementById('csvFileInput').click()" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+                            <span style="font-size: 32px; display: block; margin-bottom: 8px;">📄</span>
+                            <p style="color: var(--text); font-weight: 600; margin-bottom: 4px;">Click to upload CSV</p>
+                            <p style="color: var(--text-muted); font-size: 13px;">Required columns: email. Optional: first_name, last_name, company, title</p>
+                        </div>
+                        <input type="file" id="csvFileInput" accept=".csv" style="display:none;" onchange="handleCSVFile(this)">
+                    </div>
+                    <div id="csv-import-status"></div>
+                    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
+                        <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">CSV Format Example</h3>
+                        <pre style="background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 8px; padding: 16px; font-size: 13px; color: var(--text-muted); overflow-x: auto;">email,first_name,last_name,company,title
+john@acme.com,John,Smith,Acme Corp,VP Sales
+jane@techco.io,Jane,Doe,TechCo,CTO</pre>
+                    </div>
+                </div>
+
+                <div class="section-card" style="opacity: 0.7;">
+                    <h2>More Integrations Coming Soon</h2>
+                    <p class="section-description">We're building integrations with CRMs, enrichment tools, and more. Stay tuned!</p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-top: 16px;">
+                        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; text-align: center;">
+                            <span style="font-size: 24px;">🔗</span>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Salesforce</p>
+                        </div>
+                        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; text-align: center;">
+                            <span style="font-size: 24px;">🔗</span>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">HubSpot</p>
+                        </div>
+                        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; text-align: center;">
+                            <span style="font-size: 24px;">🔗</span>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Apollo.io</p>
+                        </div>
+                        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; text-align: center;">
+                            <span style="font-size: 24px;">🔗</span>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Zapier</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Slack Tab -->
-            <div id="slack" class="tab-content active">
+            <div id="slack" class="tab-content">
                 <div class="section-card">
                     <h2>Slack Notifications</h2>
                     <p class="section-description">Get real-time notifications in Slack when prospects reply, emails bounce, or sequences complete.</p>
@@ -461,7 +544,65 @@
             showStatus('export-status', 'Export started - download should begin shortly', 'success');
         }
 
-        window.addEventListener('DOMContentLoaded', () => { loadWebhooks(); loadWebhookLogs(); });
+        // CSV import handling
+        async function loadCampaignsForImport() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                const response = await fetch('/api/campaigns?status=active', { headers: { 'Authorization': 'Bearer ' + token } });
+                const data = await response.json();
+                const select = document.getElementById('importCampaignId');
+                if (data.campaigns && data.campaigns.length > 0) {
+                    select.innerHTML = data.campaigns.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                } else {
+                    select.innerHTML = '<option value="">No campaigns found — create one first</option>';
+                }
+            } catch (err) { console.error('Failed to load campaigns:', err); }
+        }
+
+        function handleCSVFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const campaignId = document.getElementById('importCampaignId').value;
+            if (!campaignId) { showStatus('csv-import-status', 'Please select a campaign first', 'error'); return; }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const lines = e.target.result.split('\n').filter(l => l.trim());
+                if (lines.length < 2) { showStatus('csv-import-status', 'CSV file is empty or has no data rows', 'error'); return; }
+
+                const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/["']/g, ''));
+                const emailIdx = headers.indexOf('email');
+                if (emailIdx === -1) { showStatus('csv-import-status', 'CSV must have an "email" column', 'error'); return; }
+
+                const prospects = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+                    const row = {};
+                    headers.forEach((h, j) => { row[h] = values[j] || ''; });
+                    if (row.email) prospects.push(row);
+                }
+
+                if (prospects.length === 0) { showStatus('csv-import-status', 'No valid rows found in CSV', 'error'); return; }
+
+                try {
+                    const token = localStorage.getItem('auth_token');
+                    const response = await fetch(`/api/campaigns/${campaignId}/import-prospects`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                        body: JSON.stringify({ prospects })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        showStatus('csv-import-status', `Successfully imported ${data.imported} prospects (${data.skipped} skipped)`, 'success');
+                    } else {
+                        showStatus('csv-import-status', data.error || 'Import failed', 'error');
+                    }
+                } catch (err) { showStatus('csv-import-status', 'Network error: ' + err.message, 'error'); }
+            };
+            reader.readAsText(file);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => { loadWebhooks(); loadWebhookLogs(); loadCampaignsForImport(); });
     </script>
 </body>
 </html>

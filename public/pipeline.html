@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline - Koldly</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23FF6B35' width='100' height='100' rx='20'/><text x='50' y='70' font-size='60' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial'>K</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0A0A0A; --bg-card: #141414; --bg-card-hover: #1A1A1A;
+            --accent: #FF6B35; --accent-glow: rgba(255, 107, 53, 0.15);
+            --text: #F5F5F5; --text-muted: #888; --border: #222;
+            --success: #10B981; --error: #EF4444; --warning: #F59E0B; --info: #3B82F6;
+        }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+        .topbar { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: var(--bg-card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+        .topbar-logo { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; color: var(--accent); text-decoration: none; }
+
+        .main-layout { display: flex; }
+        .sidebar { width: 240px; background: var(--bg-card); border-right: 1px solid var(--border); padding: 20px 0; min-height: calc(100vh - 60px); }
+        .sidebar-section { padding: 0 12px 16px 12px; }
+        .sidebar-title { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; padding: 12px; letter-spacing: 0.5px; }
+        .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 12px; color: var(--text-muted); text-decoration: none; border-radius: 8px; transition: all 0.2s; font-size: 14px; }
+        .sidebar-item:hover { background: var(--bg-card-hover); color: var(--text); }
+        .sidebar-item.active { background: var(--accent-glow); color: var(--accent); font-weight: 600; }
+
+        .content { flex: 1; max-width: 1200px; margin: 0 auto; padding: 32px 24px; overflow-y: auto; max-height: calc(100vh - 60px); }
+        .page-header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+        .page-header h1 { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; }
+
+        .campaign-select { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-family: inherit; font-size: 14px; cursor: pointer; }
+        .campaign-select:focus { outline: none; border-color: var(--accent); }
+
+        .pipeline-funnel { display: flex; gap: 12px; margin-bottom: 32px; overflow-x: auto; padding-bottom: 8px; }
+        .funnel-stage { flex: 1; min-width: 140px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 16px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .funnel-stage:hover { border-color: rgba(255, 107, 53, 0.3); }
+        .funnel-stage.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+        .stage-count { font-family: 'Space Grotesk', sans-serif; font-size: 32px; font-weight: 700; margin-bottom: 4px; }
+        .stage-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
+        .stage-bar { height: 4px; border-radius: 2px; margin-top: 12px; }
+        .stage-discovered .stage-count { color: var(--info); }
+        .stage-discovered .stage-bar { background: var(--info); }
+        .stage-researched .stage-count { color: #8B5CF6; }
+        .stage-researched .stage-bar { background: #8B5CF6; }
+        .stage-email_drafted .stage-count { color: var(--warning); }
+        .stage-email_drafted .stage-bar { background: var(--warning); }
+        .stage-approved .stage-count { color: var(--accent); }
+        .stage-approved .stage-bar { background: var(--accent); }
+        .stage-sent .stage-count { color: var(--success); }
+        .stage-sent .stage-bar { background: var(--success); }
+        .stage-replied .stage-count { color: #EC4899; }
+        .stage-replied .stage-bar { background: #EC4899; }
+        .stage-meeting_booked .stage-count { color: #14B8A6; }
+        .stage-meeting_booked .stage-bar { background: #14B8A6; }
+
+        .email-stats { display: flex; gap: 12px; margin-bottom: 32px; }
+        .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; flex: 1; }
+        .stat-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+        .stat-value { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; }
+
+        .prospects-section { margin-top: 24px; }
+        .prospects-section h3 { font-family: 'Space Grotesk', sans-serif; margin-bottom: 16px; font-size: 18px; }
+        .prospect-row { display: flex; align-items: center; padding: 12px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; gap: 16px; }
+        .prospect-company { font-weight: 600; min-width: 180px; }
+        .prospect-industry { color: var(--text-muted); font-size: 13px; min-width: 120px; }
+        .prospect-status { font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; }
+        .prospect-fit { font-size: 13px; min-width: 60px; text-align: right; }
+        .prospect-subject { font-size: 13px; color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .btn { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; font-family: inherit; }
+        .btn:hover { border-color: var(--accent); }
+        .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+
+        .loading { text-align: center; padding: 60px; color: var(--text-muted); }
+        .spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty-state { text-align: center; padding: 60px; }
+        .empty-state h3 { font-family: 'Space Grotesk', sans-serif; margin-bottom: 8px; }
+        .empty-state p { color: var(--text-muted); font-size: 14px; }
+
+        @media (max-width: 768px) { .sidebar { display: none; } .pipeline-funnel { flex-wrap: wrap; } .email-stats { flex-wrap: wrap; } }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div class="topbar-left"><a href="/dashboard" class="topbar-logo">Koldly</a></div>
+        <div class="topbar-right"><a href="/settings" style="color:var(--text-muted);text-decoration:none;font-size:14px;">⚙️</a></div>
+    </div>
+
+    <div class="main-layout">
+        <nav class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">Main</div>
+                <a href="/queue" class="sidebar-item"><span style="width:24px;text-align:center;">📋</span> Approval Queue</a>
+                <a href="/dashboard" class="sidebar-item"><span style="width:24px;text-align:center;">📊</span> Dashboard</a>
+                <a href="/campaigns" class="sidebar-item"><span style="width:24px;text-align:center;">📁</span> Campaigns</a>
+                <a href="/pipeline" class="sidebar-item active"><span style="width:24px;text-align:center;">🔄</span> Pipeline</a>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">Account</div>
+                <a href="/billing" class="sidebar-item"><span style="width:24px;text-align:center;">💳</span> Billing</a>
+                <a href="/settings" class="sidebar-item"><span style="width:24px;text-align:center;">⚙️</span> Settings</a>
+            </div>
+        </nav>
+
+        <main class="content">
+            <div class="page-header">
+                <h1>Pipeline</h1>
+                <select class="campaign-select" id="campaignSelect"><option value="">Select a campaign...</option></select>
+            </div>
+
+            <div id="pipelineContent">
+                <div class="empty-state">
+                    <h3>Select a campaign</h3>
+                    <p>Choose a campaign above to view its pipeline progress.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('auth_token');
+        if (!token) window.location.href = '/login?redirect=/pipeline';
+
+        const API = (path) => fetch(path, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        }).then(r => r.json());
+
+        const STAGE_LABELS = {
+            discovered: 'Discovered', researched: 'Researched', email_drafted: 'Drafted',
+            approved: 'Approved', sent: 'Sent', replied: 'Replied', meeting_booked: 'Meetings'
+        };
+
+        async function loadCampaigns() {
+            const data = await API('/api/campaigns');
+            const select = document.getElementById('campaignSelect');
+            (data.campaigns || []).forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name;
+                select.appendChild(opt);
+            });
+
+            // Auto-select first
+            if (data.campaigns?.length) {
+                select.value = data.campaigns[0].id;
+                loadPipeline(data.campaigns[0].id);
+            }
+        }
+
+        async function loadPipeline(campaignId) {
+            if (!campaignId) return;
+            const container = document.getElementById('pipelineContent');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+            try {
+                const [pipelineData, prospectsData] = await Promise.all([
+                    API(`/api/campaigns/${campaignId}/pipeline`),
+                    API(`/api/campaigns/${campaignId}/prospects`)
+                ]);
+
+                if (!pipelineData.success) throw new Error(pipelineData.error);
+
+                const stages = pipelineData.stages || [];
+                const emailStats = pipelineData.email_stats || [];
+                const prospects = prospectsData.prospects || [];
+                const total = stages.reduce((sum, s) => sum + parseInt(s.count), 0);
+
+                // Build stages map
+                const stageMap = {};
+                stages.forEach(s => stageMap[s.status] = s);
+
+                // Build email stats map
+                const emailMap = {};
+                emailStats.forEach(s => emailMap[s.status] = parseInt(s.count));
+
+                const allStages = ['discovered', 'researched', 'email_drafted', 'approved', 'sent', 'replied', 'meeting_booked'];
+
+                container.innerHTML = `
+                    <div class="pipeline-funnel">
+                        ${allStages.map(stage => {
+                            const data = stageMap[stage] || { count: 0, avg_fit_score: 0 };
+                            const count = parseInt(data.count) || 0;
+                            const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                            return `
+                            <div class="funnel-stage stage-${stage}" data-stage="${stage}" onclick="filterProspects('${stage}')">
+                                <div class="stage-count">${count}</div>
+                                <div class="stage-label">${STAGE_LABELS[stage]}</div>
+                                <div class="stage-bar" style="width: ${Math.max(pct, 5)}%; opacity: ${count > 0 ? 1 : 0.3};"></div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+
+                    <div class="email-stats">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Prospects</div>
+                            <div class="stat-value">${total}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Emails Pending</div>
+                            <div class="stat-value">${emailMap['pending_approval'] || 0}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Emails Approved</div>
+                            <div class="stat-value">${emailMap['approved'] || 0}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Emails Sent</div>
+                            <div class="stat-value">${emailMap['sent'] || 0}</div>
+                        </div>
+                    </div>
+
+                    <div class="prospects-section">
+                        <h3>Prospects</h3>
+                        <div id="prospectsList">
+                            ${renderProspects(prospects)}
+                        </div>
+                    </div>`;
+
+                // Store prospects for filtering
+                window._prospects = prospects;
+            } catch (err) {
+                container.innerHTML = `<div class="empty-state"><h3>Error</h3><p>${err.message}</p></div>`;
+            }
+        }
+
+        function renderProspects(prospects) {
+            if (!prospects.length) return '<div class="empty-state"><p>No prospects yet. Start discovery from the Campaigns page.</p></div>';
+
+            return prospects.map(p => {
+                const fitColor = p.fit_score >= 70 ? 'var(--success)' : p.fit_score >= 40 ? 'var(--warning)' : 'var(--error)';
+                return `
+                <div class="prospect-row">
+                    <div class="prospect-company">${esc(p.company_name)}</div>
+                    <div class="prospect-industry">${esc(p.industry || '')}</div>
+                    <span class="prospect-status" style="background: rgba(255,107,53,0.1); color: var(--accent);">${p.status || 'unknown'}</span>
+                    <div class="prospect-subject">${esc(p.subject_line || '')}</div>
+                    <div class="prospect-fit" style="color: ${fitColor};">${p.fit_score || 0}%</div>
+                </div>`;
+            }).join('');
+        }
+
+        function filterProspects(stage) {
+            document.querySelectorAll('.funnel-stage').forEach(s => s.classList.remove('active'));
+            document.querySelector(`.funnel-stage[data-stage="${stage}"]`)?.classList.add('active');
+
+            const filtered = (window._prospects || []).filter(p => p.status === stage);
+            document.getElementById('prospectsList').innerHTML = renderProspects(filtered);
+        }
+
+        function esc(str) {
+            if (!str) return '';
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+
+        document.getElementById('campaignSelect').addEventListener('change', function() {
+            if (this.value) loadPipeline(this.value);
+        });
+
+        loadCampaigns();
+    </script>
+</body>
+</html>

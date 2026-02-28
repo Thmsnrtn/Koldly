@@ -12,6 +12,18 @@ const AuthService = require('./lib/auth-service');
 const OAuthService = require('./lib/oauth-service');
 const CampaignSendingService = require('./lib/campaign-sending-service');
 const ProofService = require('./lib/proof-service');
+const ProspectDiscoveryService = require('./lib/prospect-discovery-service');
+const EmailGenerationService = require('./lib/email-generation-service');
+const ApprovalService = require('./lib/approval-service');
+const ReplyResponseService = require('./lib/reply-response-service');
+const StripeService = require('./lib/stripe-service');
+const EcosystemService = require('./lib/ecosystem-service');
+const DecisionQueueService = require('./lib/decision-queue-service');
+const RetentionService = require('./lib/retention-service');
+const SupportService = require('./lib/support-service');
+const ProductIntelligenceService = require('./lib/product-intelligence-service');
+const MarketingService = require('./lib/marketing-service');
+const OnboardingService = require('./lib/onboarding-service');
 const auditLogger = require('./lib/audit-logger');
 const RetryService = require('./lib/retry-service');
 const idempotencyService = require('./lib/idempotency');
@@ -53,11 +65,10 @@ app.use(helmet({
   }
 }));
 
-// CORS Configuration - only allow koldly.com and koldly.polsia.app
+// CORS Configuration
 const allowedOrigins = [
   'https://koldly.com',
   'https://www.koldly.com',
-  'https://koldly.polsia.app',
   process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : undefined
 ].filter(Boolean);
 
@@ -73,6 +84,95 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Stripe webhook needs raw body for signature verification — must be before json parser
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const sig = req.headers['stripe-signature'];
+    const event = stripeService.verifyWebhook(req.body, sig);
+    const result = await stripeService.processWebhookEvent(event);
+    res.json({ received: true, ...result });
+  } catch (err) {
+    console.error('[Stripe Webhook] Error:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Inbound email webhook (SES/Mailgun) — needs raw JSON parsing
+app.post('/api/webhooks/inbound', express.json({ limit: '10mb' }), async (req, res) => {
+  try {
+    const provider = process.env.COLD_ESP_PROVIDER || 'unknown';
+    let fromEmail, subject, body, toEmail, messageId;
+
+    if (provider === 'mailgun') {
+      // Mailgun inbound format
+      fromEmail = req.body.sender || req.body.from;
+      subject = req.body.subject;
+      body = req.body['stripped-text'] || req.body['body-plain'] || '';
+      toEmail = req.body.recipient;
+      messageId = req.body['Message-Id'];
+    } else if (provider === 'ses') {
+      // SES inbound format (SNS notification)
+      const message = typeof req.body.Message === 'string' ? JSON.parse(req.body.Message) : req.body;
+      const mail = message.mail || {};
+      const content = message.content || '';
+      fromEmail = mail.source || mail.commonHeaders?.from?.[0];
+      subject = mail.commonHeaders?.subject;
+      toEmail = mail.destination?.[0];
+      messageId = mail.messageId;
+      body = content;
+    } else {
+      // Generic format
+      fromEmail = req.body.from || req.body.sender;
+      subject = req.body.subject;
+      body = req.body.text || req.body.body || '';
+      toEmail = req.body.to || req.body.recipient;
+      messageId = req.body.message_id;
+    }
+
+    if (!fromEmail) {
+      return res.status(400).json({ error: 'No sender email found in payload' });
+    }
+
+    console.log(`[Inbound] Reply from ${fromEmail}: "${subject}"`);
+
+    // Match to a prospect by email
+    const prospectMatch = await pool.query(`
+      SELECT p.id as prospect_id, p.campaign_id, c.user_id
+      FROM prospects p
+      JOIN campaigns c ON c.id = p.campaign_id
+      WHERE p.email = $1 OR EXISTS (
+        SELECT 1 FROM generated_emails ge WHERE ge.recipient_email = $1 AND ge.campaign_id = p.campaign_id
+      )
+      ORDER BY p.created_at DESC LIMIT 1
+    `, [fromEmail.toLowerCase()]);
+
+    if (prospectMatch.rows.length > 0) {
+      const match = prospectMatch.rows[0];
+
+      // Store in prospect_reply_inbox
+      await pool.query(`
+        INSERT INTO prospect_reply_inbox (prospect_id, campaign_id, from_email, subject, body, received_at)
+        VALUES ($1, $2, $3, $4, $5, NOW())
+        ON CONFLICT DO NOTHING
+      `, [match.prospect_id, match.campaign_id, fromEmail, subject || '(no subject)', body]);
+
+      // Trigger AI categorization in background
+      replyResponseService.categorizeReply(match.prospect_id, match.user_id).catch(err => {
+        console.error('[Inbound] Categorization failed:', err.message);
+      });
+
+      console.log(`[Inbound] Reply matched to prospect ${match.prospect_id}, campaign ${match.campaign_id}`);
+    } else {
+      console.log(`[Inbound] No prospect match for ${fromEmail}`);
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    console.error('[Inbound Webhook] Error:', err.message);
+    res.status(500).json({ error: 'Failed to process inbound email' });
+  }
+});
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
@@ -133,7 +233,52 @@ const passwordResetLimiter = rateLimit({
   message: 'Too many password reset attempts. Please try again later.'
 });
 
-app.use('/api/', apiLimiter);
+// ============================================
+// INTERNAL API ROUTES (Ecosystem — before rate limiter)
+// ============================================
+
+const ecosystemAuth = ecosystemService.middleware();
+
+app.get('/internal/health', ecosystemAuth, (req, res) => {
+  res.json({ status: 'ok', service: 'koldly', timestamp: new Date().toISOString() });
+});
+
+app.post('/internal/campaign/create', ecosystemAuth, async (req, res) => {
+  try {
+    const { program, prospects, config } = req.body;
+    if (!program) return res.status(400).json({ error: 'program is required' });
+    const result = await ecosystemService.createProgramCampaign(program, prospects || [], config || {});
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[Internal API] Campaign create error:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/internal/campaign/:campaignId/status', ecosystemAuth, async (req, res) => {
+  try {
+    const status = await ecosystemService.getCampaignStatus(parseInt(req.params.campaignId));
+    if (!status) return res.status(404).json({ error: 'Campaign not found' });
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/internal/operator/dashboard-data', ecosystemAuth, async (req, res) => {
+  try {
+    const data = await ecosystemService.getDashboardData();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Rate limiter — skip for ecosystem-authenticated requests
+app.use('/api/', (req, res, next) => {
+  if (req.ecosystemAuthenticated) return next();
+  apiLimiter(req, res, next);
+});
 
 // ============================================
 // PAGE VIEW TRACKING MIDDLEWARE
@@ -192,11 +337,23 @@ const oauthService = new OAuthService(pool);
 const emailService = new EmailService(pool);
 const campaignSendingService = new CampaignSendingService(pool);
 const proofService = new ProofService(pool);
+const discoveryService = new ProspectDiscoveryService(pool);
+const emailGenService = new EmailGenerationService(pool);
+const approvalService = new ApprovalService(pool);
+const replyResponseService = new ReplyResponseService(pool);
+const stripeService = new StripeService(pool);
+const ecosystemService = new EcosystemService(pool);
+const decisionQueueService = new DecisionQueueService(pool);
+const retentionService = new RetentionService(pool);
+const supportService = new SupportService(pool);
+const productIntelService = new ProductIntelligenceService(pool);
+const marketingService = new MarketingService(pool);
+const onboardingServiceAuto = new OnboardingService(pool);
 const webhookService = new WebhookService();
 const slackService = new SlackService();
 
 // Register inbox routes
-registerInboxRoutes(app, pool);
+registerInboxRoutes(app, pool, authService);
 
 // ============================================
 // ANALYTICS TRACKING HELPER
@@ -252,6 +409,20 @@ function requireAuth(req, res, next) {
     }
 
     req.userId = decoded.userId;
+
+    // Gate: redirect to onboarding if not completed (skip for onboarding page itself and API routes)
+    if (req.path !== '/onboarding' && !req.path.startsWith('/api/')) {
+      pool.query('SELECT onboarding_completed FROM users WHERE id = $1', [decoded.userId])
+        .then(result => {
+          if (result.rows[0] && !result.rows[0].onboarding_completed) {
+            return res.redirect('/onboarding');
+          }
+          next();
+        })
+        .catch(() => next());
+      return;
+    }
+
     next();
   } catch (err) {
     console.error('Auth middleware error:', err);
@@ -290,64 +461,52 @@ app.get('/health', async (req, res) => {
   res.json(response);
 });
 
-// Serve HTML pages as routes (fallback for static file serving issues)
-app.get('/proof', (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/proof.html'), 'utf8'));
-});
+// ============================================
+// HTML FILE CACHE (read once at startup, serve from memory)
+// ============================================
+const htmlCache = new Map();
+function loadHtml(filename) {
+  const filePath = path.join(__dirname, 'public', filename);
+  try {
+    htmlCache.set(filename, fs.readFileSync(filePath, 'utf8'));
+  } catch (err) {
+    console.error(`[Cache] Failed to load ${filename}:`, err.message);
+  }
+}
+function serveHtml(filename) {
+  return (req, res) => {
+    const cached = htmlCache.get(filename);
+    if (cached) {
+      res.type('html').send(cached);
+    } else {
+      // Fallback to disk read (shouldn't happen in production)
+      res.type('html').send(fs.readFileSync(path.join(__dirname, 'public', filename), 'utf8'));
+    }
+  };
+}
+// Pre-load all HTML pages into cache
+['proof.html', 'demo.html', 'onboarding.html', 'pricing.html', 'settings.html',
+ 'dashboard.html', 'campaigns.html', 'analytics.html', 'integrations.html',
+ 'campaign-sending.html', 'inbox.html', 'admin-metrics.html', 'login.html',
+ 'signup.html', 'forgot-password.html', 'reset-password.html', 'terms.html',
+ 'privacy.html', 'billing.html', 'queue.html', 'pipeline.html', 'operator.html',
+ '404.html'
+].forEach(loadHtml);
 
-app.get('/demo', (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/demo.html'), 'utf8'));
-});
-
-// Protected: Onboarding (may be public but often protected)
-app.get('/onboarding', (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/onboarding.html'), 'utf8'));
-});
-
-// Public: Pricing
-app.get('/pricing', (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/pricing.html'), 'utf8'));
-});
-
-// Protected: Settings
-app.get('/settings', requireAuth, (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/settings.html'), 'utf8'));
-});
-
-// Protected: Dashboard
-app.get('/dashboard', requireAuth, (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/dashboard.html'), 'utf8'));
-});
-
-// Protected: Campaigns
-app.get('/campaigns', requireAuth, (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/campaigns.html'), 'utf8'));
-});
-
-// Protected: Analytics
-app.get('/analytics', requireAuth, (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/analytics.html'), 'utf8'));
-});
-
-// Protected: Integrations
-app.get('/integrations', requireAuth, (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/integrations.html'), 'utf8'));
-});
-
-// Protected: Campaign Sending
-app.get('/campaign-sending', requireAuth, (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/campaign-sending.html'), 'utf8'));
-});
-
-// Protected: Inbox
-app.get('/inbox', requireAuth, (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/inbox.html'), 'utf8'));
-});
-
-// Protected: Admin Metrics
-app.get('/admin/metrics', requireAuth, (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/admin-metrics.html'), 'utf8'));
-});
+// Serve HTML pages from cache
+app.get('/proof', serveHtml('proof.html'));
+app.get('/demo', serveHtml('demo.html'));
+app.get('/onboarding', serveHtml('onboarding.html'));
+app.get('/pricing', serveHtml('pricing.html'));
+app.get('/settings', requireAuth, serveHtml('settings.html'));
+app.get('/dashboard', requireAuth, serveHtml('dashboard.html'));
+app.get('/campaigns', requireAuth, serveHtml('campaigns.html'));
+app.get('/analytics', requireAuth, serveHtml('analytics.html'));
+app.get('/integrations', requireAuth, serveHtml('integrations.html'));
+app.get('/campaign-sending', requireAuth, serveHtml('campaign-sending.html'));
+app.get('/inbox', requireAuth, serveHtml('inbox.html'));
+app.get('/admin/metrics', requireAuth, serveHtml('admin-metrics.html'));
+app.get('/operator', requireAuth, serveHtml('operator.html'));
 
 // Proof/Demo API endpoint
 app.post('/api/proof', async (req, res) => {
@@ -404,6 +563,26 @@ app.post('/api/auth/signup', authLimiter, [
     trackEvent('signup', user.id, { email: user.email }).catch(err =>
       console.error('Signup tracking failed:', err.message)
     );
+
+    // Send welcome email via Postmark (transactional)
+    try {
+      await emailService.sendTransactionalEmail(
+        user.email,
+        'Welcome to Koldly! 🚀',
+        `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #FF6B35;">Welcome to Koldly!</h2>
+          <p>Hi${user.name ? ' ' + user.name : ''},</p>
+          <p>Thanks for signing up. Koldly helps you find prospects and write personalized outreach with AI.</p>
+          <p><strong>Next step:</strong> Complete your onboarding to set up your first campaign.</p>
+          <a href="${process.env.APP_URL || 'https://koldly.com'}/onboarding" style="display: inline-block; padding: 12px 24px; background: #FF6B35; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 20px 0;">Start Onboarding →</a>
+          <p style="color: #666; font-size: 14px;">Need help? Reply to this email or contact <a href="mailto:support@koldly.com" style="color: #FF6B35;">support@koldly.com</a>.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+          <p style="color: #999; font-size: 12px;">You're receiving this because you signed up for Koldly.</p>
+        </div>`
+      );
+    } catch (welcomeErr) {
+      console.error('Welcome email failed:', welcomeErr.message);
+    }
 
     res.json({ success: true, token, user: { id: user.id, email: user.email, name: user.name } });
   } catch (err) {
@@ -485,35 +664,24 @@ app.post('/api/auth/forgot-password', passwordResetLimiter, [
       return res.json({ success: true, message: 'If an account exists with that email, you will receive a password reset link.' });
     }
 
-    // Send reset email via Polsia email proxy
-    const resetUrl = `https://koldly.com/reset-password?token=${resetData.token}`;
+    // Send reset email via Postmark
+    const resetUrl = `${process.env.APP_URL || 'https://koldly.com'}/reset-password?token=${resetData.token}`;
 
     try {
-      await fetch('https://polsia.com/api/proxy/email/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.POLSIA_API_KEY}`
-        },
-        body: JSON.stringify({
-          to: resetData.email,
-          subject: 'Reset Your Koldly Password',
-          body: `You requested a password reset for your Koldly account.\n\nClick here to reset your password: ${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, you can safely ignore this email.`,
-          html: `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #FF6B35;">Reset Your Password</h2>
-              <p>You requested a password reset for your Koldly account.</p>
-              <p>Click the button below to reset your password:</p>
-              <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #FF6B35; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 20px 0;">Reset Password</a>
-              <p style="color: #666; font-size: 14px;">This link expires in 1 hour.</p>
-              <p style="color: #666; font-size: 14px;">If you didn't request this, you can safely ignore this email.</p>
-              <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-              <p style="color: #999; font-size: 12px;">If the button doesn't work, copy and paste this link:<br>${resetUrl}</p>
-            </div>
-          `,
-          transactional: true  // Bypass rate limit for password reset emails
-        })
-      });
+      await emailService.sendTransactionalEmail(
+        resetData.email,
+        'Reset Your Koldly Password',
+        `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #FF6B35;">Reset Your Password</h2>
+          <p>You requested a password reset for your Koldly account.</p>
+          <p>Click the button below to reset your password:</p>
+          <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #FF6B35; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 20px 0;">Reset Password</a>
+          <p style="color: #666; font-size: 14px;">This link expires in 1 hour.</p>
+          <p style="color: #666; font-size: 14px;">If you didn't request this, you can safely ignore this email.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+          <p style="color: #999; font-size: 12px;">If the button doesn't work, copy and paste this link:<br>${resetUrl}</p>
+        </div>`
+      );
     } catch (emailErr) {
       console.error('Failed to send reset email:', emailErr);
       // Still return success - don't reveal email sending failures
@@ -613,8 +781,11 @@ app.get('/auth/google/callback', async (req, res) => {
     // Check if email is verified (should be for Google OAuth)
     const isVerified = await oauthService.isEmailVerified(user.id);
 
-    // Redirect to dashboard with token
-    res.redirect(`/dashboard?token=${token}&email=${encodeURIComponent(user.email)}&verified=${isVerified ? '1' : '0'}`);
+    // Check if onboarding is completed
+    const onboardingCheck = await pool.query('SELECT onboarding_completed FROM users WHERE id = $1', [user.id]);
+    const onboardingDone = onboardingCheck.rows[0]?.onboarding_completed;
+    const destination = onboardingDone ? '/dashboard' : '/onboarding';
+    res.redirect(`${destination}?token=${token}&email=${encodeURIComponent(user.email)}&verified=${isVerified ? '1' : '0'}`);
   } catch (err) {
     console.error('OAuth callback error:', err);
     res.redirect(`/login?error=${encodeURIComponent(err.message)}`);
@@ -641,29 +812,22 @@ app.post('/api/auth/send-verification', async (req, res) => {
     // Resend verification email
     const { token: verificationToken, email } = await oauthService.resendVerificationEmail(decoded.userId);
 
-    // Send verification email via Polsia email proxy
-    const verifyUrl = `https://koldly.com/verify-email?token=${verificationToken}`;
+    // Send verification email via Postmark
+    const verifyUrl = `${process.env.APP_URL || 'https://koldly.com'}/verify-email?token=${verificationToken}`;
 
     try {
-      await fetch('https://polsia.com/api/proxy/email/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.POLSIA_API_KEY}`
-        },
-        body: JSON.stringify({
-          to: email,
-          subject: 'Verify Your Koldly Email Address',
-          html: `
-            <h2>Verify Your Email</h2>
-            <p>Click the link below to verify your email address:</p>
-            <p><a href="${verifyUrl}" style="background: #FF6B35; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">Verify Email</a></p>
-            <p>Or paste this link: ${verifyUrl}</p>
-            <p style="color: #888; font-size: 12px;">This link expires in 24 hours.</p>
-          `,
-          text: `Verify your email: ${verifyUrl}`
-        })
-      });
+      await emailService.sendTransactionalEmail(
+        email,
+        'Verify Your Koldly Email Address',
+        `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #FF6B35;">Verify Your Email</h2>
+          <p>Click the link below to verify your email address:</p>
+          <p><a href="${verifyUrl}" style="background: #FF6B35; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">Verify Email</a></p>
+          <p>Or paste this link: ${verifyUrl}</p>
+          <p style="color: #888; font-size: 12px;">This link expires in 24 hours.</p>
+        </div>`,
+        `Verify your email: ${verifyUrl}`
+      );
     } catch (err) {
       console.error('Failed to send verification email:', err);
       // Still return success - email might have sent
@@ -775,36 +939,24 @@ app.get('/verify-email', (req, res) => {
   `);
 });
 
-// Serve login and signup pages
-app.get('/login', (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/login.html'), 'utf8'));
-});
-
-app.get('/signup', (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/signup.html'), 'utf8'));
-});
-
-app.get('/forgot-password', (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/forgot-password.html'), 'utf8'));
-});
-
-app.get('/reset-password', (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/reset-password.html'), 'utf8'));
-});
+// Serve login and signup pages (from cache)
+app.get('/login', serveHtml('login.html'));
+app.get('/signup', serveHtml('signup.html'));
+app.get('/forgot-password', serveHtml('forgot-password.html'));
+app.get('/reset-password', serveHtml('reset-password.html'));
 
 // Legal pages
-app.get('/terms', (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/terms.html'), 'utf8'));
-});
+app.get('/terms', serveHtml('terms.html'));
+app.get('/privacy', serveHtml('privacy.html'));
 
-app.get('/privacy', (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/privacy.html'), 'utf8'));
-});
+// Billing page (protected)
+app.get('/billing', requireAuth, serveHtml('billing.html'));
 
-// Billing page
-app.get('/billing', (req, res) => {
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'public/billing.html'), 'utf8'));
-});
+// Protected: Approval Queue (primary screen)
+app.get('/queue', requireAuth, serveHtml('queue.html'));
+
+// Protected: Pipeline View
+app.get('/pipeline', requireAuth, serveHtml('pipeline.html'));
 
 // ============================================
 // BILLING API ROUTES (Protected)
@@ -813,128 +965,127 @@ app.get('/billing', (req, res) => {
 // Get user's current plan
 app.get('/api/billing/plan', async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const decoded = authService.verifyToken(token);
-    if (!decoded) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
-
-    const result = await pool.query(
-      `SELECT
-        subscription_plan,
-        subscription_status,
-        subscription_expires_at,
-        subscription_updated_at,
-        stripe_subscription_id
-      FROM users WHERE id = $1`,
-      [decoded.userId]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const user = result.rows[0];
-    const plans = {
-      'starter': { name: 'Starter', monthlyPrice: 49 },
-      'growth': { name: 'Growth', monthlyPrice: 149 },
-      'scale': { name: 'Scale', monthlyPrice: 399 }
-    };
-
-    const plan = plans[user.subscription_plan] || plans.starter;
-    const status = user.subscription_status || 'inactive';
-
-    // Calculate next billing date (30 days from now)
-    const nextBilling = new Date();
-    nextBilling.setDate(nextBilling.getDate() + 30);
-
-    // Calculate renewal date
-    const renewalDate = user.subscription_expires_at || nextBilling;
-
-    res.json({
-      success: true,
-      plan: {
-        name: plan.name,
-        monthlyPrice: plan.monthlyPrice,
-        status,
-        nextBillingDate: nextBilling.toISOString(),
-        renewalDate: renewalDate.toISOString()
-      }
-    });
+    const subscription = await stripeService.getSubscription(user.id);
+    res.json({ success: true, ...subscription });
   } catch (err) {
     console.error('Plan fetch error:', err);
     res.status(500).json({ error: 'Failed to fetch plan information' });
   }
 });
 
-// Get Stripe customer portal URL
-app.get('/api/billing/portal', async (req, res) => {
+// Create checkout session
+app.post('/api/billing/checkout', async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { plan } = req.body;
+    if (!['starter', 'growth', 'scale'].includes(plan)) {
+      return res.status(400).json({ error: 'Invalid plan' });
     }
 
-    const decoded = authService.verifyToken(token);
-    if (!decoded) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
+    const session = await stripeService.createCheckoutSession(user.id, plan);
 
-    const result = await pool.query(
-      'SELECT stripe_subscription_id FROM users WHERE id = $1',
-      [decoded.userId]
-    );
+    // Track billing checkout event
+    trackEvent('billing_checkout', user.id, { plan }).catch(() => {});
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const user = result.rows[0];
-
-    if (!user.stripe_subscription_id) {
-      // User hasn't subscribed yet - redirect to pricing
-      return res.json({ portalUrl: 'https://koldly.com/pricing' });
-    }
-
-    // In production, you would use Stripe API to create a billing portal session
-    // For now, we'll return a link to Stripe's customer portal
-    const portalUrl = 'https://billing.stripe.com/login/test_1F6SBg0bZa1w';
-
-    res.json({ success: true, portalUrl });
+    res.json({ success: true, ...session });
   } catch (err) {
-    console.error('Portal URL error:', err);
-    res.status(500).json({ error: 'Failed to generate portal URL' });
+    console.error('Checkout error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Get invoices (placeholder)
+// Get Stripe customer portal URL
+app.get('/api/billing/portal', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const session = await stripeService.createPortalSession(user.id);
+    res.json({ success: true, portalUrl: session.url });
+  } catch (err) {
+    console.error('Portal URL error:', err);
+    // Fallback for users without Stripe
+    res.json({ success: true, portalUrl: '/pricing' });
+  }
+});
+
+// Get invoices
 app.get('/api/billing/invoices', async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const decoded = authService.verifyToken(token);
-    if (!decoded) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
-
-    // In production, fetch from Stripe API
-    // For now, return empty invoices
-    res.json({
-      success: true,
-      invoices: []
-    });
+    const invoices = await stripeService.getInvoices(user.id);
+    res.json({ success: true, invoices });
   } catch (err) {
     console.error('Invoices fetch error:', err);
     res.status(500).json({ error: 'Failed to fetch invoices' });
   }
 });
+
+// Get usage metrics for billing page
+app.get('/api/billing/usage', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const AIService = require('./lib/ai-service');
+    const aiService = new AIService(pool);
+    const budget = await aiService.checkBudget(user.id);
+
+    // Get prospect count this month
+    const prospectResult = await pool.query(`
+      SELECT COUNT(*) as count FROM prospects
+      WHERE campaign_id IN (SELECT id FROM campaigns WHERE user_id = $1)
+        AND created_at >= DATE_TRUNC('month', NOW())
+    `, [user.id]);
+
+    // Get plan limits
+    const planLimits = {
+      free:    { prospects: 25,   campaigns: 1  },
+      starter: { prospects: 100,  campaigns: 1  },
+      growth:  { prospects: 500,  campaigns: 5  },
+      scale:   { prospects: 2000, campaigns: -1 }
+    };
+
+    const plan = budget.plan || 'free';
+    const limits = planLimits[plan] || planLimits.free;
+
+    const campaignResult = await pool.query(
+      'SELECT COUNT(*) as count FROM campaigns WHERE user_id = $1 AND (is_archived = false OR is_archived IS NULL)',
+      [user.id]
+    );
+
+    res.json({
+      success: true,
+      plan,
+      prospects: {
+        used: parseInt(prospectResult.rows[0].count),
+        limit: limits.prospects
+      },
+      campaigns: {
+        used: parseInt(campaignResult.rows[0].count),
+        limit: limits.campaigns
+      },
+      ai_budget: {
+        used_cents: budget.used_cents || 0,
+        budget_cents: budget.budget_cents || 500,
+        remaining_cents: budget.remaining_cents || 0
+      }
+    });
+  } catch (err) {
+    console.error('Billing usage error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Stripe webhook (raw body required — must be before json middleware)
+// Note: This route uses express.raw() for signature verification
 
 // ============================================
 // CAMPAIGN SENDING ROUTES (Protected)
@@ -1155,6 +1306,32 @@ app.post('/api/campaigns', async (req, res) => {
     const { name, description, icp_description, icp_template_id } = req.body;
     if (!name) return res.status(400).json({ error: 'Campaign name is required' });
 
+    // Enforce plan limits
+    const planLimits = { free: 1, starter: 1, growth: 5, scale: -1 };
+    const userPlan = await pool.query('SELECT subscription_plan FROM users WHERE id = $1', [user.id]);
+    const plan = userPlan.rows[0]?.subscription_plan || 'free';
+    const maxCampaigns = planLimits[plan] ?? 1;
+
+    if (maxCampaigns !== -1) {
+      const campaignCount = await pool.query(
+        'SELECT COUNT(*) as count FROM campaigns WHERE user_id = $1 AND (is_archived = false OR is_archived IS NULL)',
+        [user.id]
+      );
+      if (parseInt(campaignCount.rows[0].count) >= maxCampaigns) {
+        // Track plan limit hit
+        trackEvent('plan_limit_hit', user.id, {
+          limit_type: 'campaigns',
+          current_plan: plan,
+          limit: maxCampaigns
+        }).catch(() => {});
+        return res.status(403).json({
+          error: `Campaign limit reached (${maxCampaigns} on ${plan} plan). Upgrade to create more campaigns.`,
+          upgrade_required: true,
+          current_plan: plan
+        });
+      }
+    }
+
     let icpDesc = icp_description || null;
 
     // If using template, fetch ICP description from template
@@ -1351,31 +1528,33 @@ app.get('/api/dashboard/stats', async (req, res) => {
       return res.status(401).json({ error: 'Invalid token' });
     }
 
-    // Get key metrics
+    // Get key metrics from pipeline tables (prospects, generated_emails) + sending queue
+    const userId = user.userId || user.id;
     const statsResult = await pool.query(`
       SELECT
-        (SELECT COUNT(*) FROM campaigns WHERE user_id = $1) as total_campaigns,
-        (SELECT COUNT(DISTINCT prospect_id) FROM campaign_sending_queue WHERE campaign_id IN (SELECT id FROM campaigns WHERE user_id = $1)) as total_prospects,
+        (SELECT COUNT(*) FROM campaigns WHERE user_id = $1 AND (is_archived = false OR is_archived IS NULL)) as total_campaigns,
+        (SELECT COUNT(*) FROM campaigns WHERE user_id = $1 AND status = 'active' AND (is_archived = false OR is_archived IS NULL)) as active_campaigns,
+        (SELECT COUNT(*) FROM prospects WHERE campaign_id IN (SELECT id FROM campaigns WHERE user_id = $1)) as total_prospects,
+        (SELECT COUNT(*) FROM generated_emails WHERE campaign_id IN (SELECT id FROM campaigns WHERE user_id = $1) AND status = 'pending_approval') as emails_pending,
+        (SELECT COUNT(*) FROM generated_emails WHERE campaign_id IN (SELECT id FROM campaigns WHERE user_id = $1) AND status = 'approved') as emails_approved,
         (SELECT COUNT(*) FROM campaign_sending_queue WHERE campaign_id IN (SELECT id FROM campaigns WHERE user_id = $1) AND status = 'sent') as emails_sent,
-        (SELECT COUNT(*) FROM campaign_sending_queue WHERE campaign_id IN (SELECT id FROM campaigns WHERE user_id = $1) AND status = 'pending') as emails_pending,
-        (SELECT COUNT(*) FROM prospect_replies WHERE campaign_id IN (SELECT id FROM campaigns WHERE user_id = $1)) as replies_received,
-        (SELECT COUNT(*) FROM campaign_sending_context WHERE campaign_id IN (SELECT id FROM campaigns WHERE user_id = $1) AND status = 'active') as active_campaigns
-    `, [user.id]);
+        (SELECT COUNT(*) FROM prospect_reply_inbox WHERE campaign_id IN (SELECT id FROM campaigns WHERE user_id = $1)) as replies_received
+    `, [userId]);
 
     const stats = statsResult.rows[0] || {};
 
-    // Calculate reply rate
     const emailsSent = parseInt(stats.emails_sent) || 0;
     const repliesReceived = parseInt(stats.replies_received) || 0;
     const replyRate = emailsSent > 0 ? Math.round((repliesReceived / emailsSent) * 100) : 0;
 
     res.json({
       total_campaigns: parseInt(stats.total_campaigns) || 0,
-      total_prospects: parseInt(stats.total_prospects) || 0,
-      emails_sent: emailsSent,
-      emails_pending: parseInt(stats.emails_pending) || 0,
-      reply_rate: replyRate,
       active_campaigns: parseInt(stats.active_campaigns) || 0,
+      total_prospects: parseInt(stats.total_prospects) || 0,
+      emails_pending: parseInt(stats.emails_pending) || 0,
+      emails_approved: parseInt(stats.emails_approved) || 0,
+      emails_sent: emailsSent,
+      reply_rate: replyRate,
       replies_received: repliesReceived
     });
   } catch (err) {
@@ -1531,6 +1710,612 @@ app.get('/api/dashboard/activity', async (req, res) => {
 });
 
 // ============================================
+// AUTONOMOUS PIPELINE ROUTES (Protected)
+// ============================================
+
+// --- Discovery ---
+app.post('/api/campaigns/:id/discover', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { batchSize } = req.body;
+    const result = await discoveryService.discoverProspects(
+      parseInt(req.params.id), user.id, batchSize || 25
+    );
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Discovery error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/campaigns/:id/research', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { prospect_ids, batchSize } = req.body;
+    const result = await discoveryService.researchProspects(
+      parseInt(req.params.id), user.id, prospect_ids, batchSize || 5
+    );
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Research error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/campaigns/:id/prospects', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await pool.query(`
+      SELECT p.*, ge.status as email_status, ge.subject_line
+      FROM prospects p
+      LEFT JOIN LATERAL (
+        SELECT status, subject_line FROM generated_emails
+        WHERE prospect_id = p.id ORDER BY created_at DESC LIMIT 1
+      ) ge ON true
+      WHERE p.campaign_id = $1
+        AND EXISTS (SELECT 1 FROM campaigns WHERE id = $1 AND user_id = $2)
+      ORDER BY p.fit_score DESC, p.created_at DESC
+    `, [req.params.id, user.id]);
+
+    res.json({ prospects: result.rows });
+  } catch (err) {
+    console.error('Prospects error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- CSV Import ---
+app.post('/api/campaigns/:id/import-prospects', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const campaignId = parseInt(req.params.id);
+
+    // Verify ownership
+    const campaign = await pool.query(
+      'SELECT id FROM campaigns WHERE id = $1 AND user_id = $2',
+      [campaignId, user.id]
+    );
+    if (campaign.rows.length === 0) return res.status(404).json({ error: 'Campaign not found' });
+
+    const { prospects } = req.body;
+    if (!prospects || !Array.isArray(prospects) || prospects.length === 0) {
+      return res.status(400).json({ error: 'prospects array is required' });
+    }
+
+    if (prospects.length > 500) {
+      return res.status(400).json({ error: 'Maximum 500 prospects per import' });
+    }
+
+    let imported = 0;
+    let skipped = 0;
+
+    for (const p of prospects) {
+      if (!p.email) { skipped++; continue; }
+
+      try {
+        await pool.query(`
+          INSERT INTO prospects (campaign_id, email, first_name, last_name, company_name, title, source, status, fit_score)
+          VALUES ($1, $2, $3, $4, $5, $6, 'csv_import', 'discovered', 50)
+          ON CONFLICT (campaign_id, email) DO NOTHING
+        `, [
+          campaignId,
+          p.email.trim().toLowerCase(),
+          p.first_name || p.name?.split(' ')[0] || null,
+          p.last_name || p.name?.split(' ').slice(1).join(' ') || null,
+          p.company || p.company_name || null,
+          p.title || p.role || null
+        ]);
+        imported++;
+      } catch (insertErr) {
+        skipped++;
+      }
+    }
+
+    // Track CSV import event (H1 hypothesis - activation funnel)
+    trackEvent('csv_import', user.id, {
+      campaign_id: campaignId,
+      prospect_count: imported,
+      skipped: skipped
+    }).catch(() => {});
+
+    res.json({ success: true, imported, skipped, total: prospects.length });
+  } catch (err) {
+    console.error('CSV import error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Email Generation ---
+app.post('/api/campaigns/:id/generate-emails', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { batchSize } = req.body;
+    const result = await emailGenService.generateForCampaign(
+      parseInt(req.params.id), user.id, batchSize || 5
+    );
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Email generation error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/emails/:id/regenerate', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { feedback } = req.body;
+    const result = await emailGenService.regenerateEmail(
+      parseInt(req.params.id), user.id, feedback
+    );
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Email regeneration error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// --- Approval Queue ---
+app.get('/api/queue', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { type, campaign_id, page, limit } = req.query;
+    const result = await approvalService.getQueue(user.id, {
+      type, campaign_id: campaign_id ? parseInt(campaign_id) : null,
+      page: parseInt(page) || 1, limit: parseInt(limit) || 50
+    });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Queue error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/queue/counts', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const counts = await approvalService.getQueueCounts(user.id);
+    res.json({ success: true, ...counts });
+  } catch (err) {
+    console.error('Queue counts error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/queue/emails/:id/approve', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await approvalService.approveEmail(parseInt(req.params.id), user.id);
+
+    // Track email approval event
+    trackEvent('email_approved', user.id, {
+      email_id: parseInt(req.params.id)
+    }).catch(() => {});
+
+    // Beta: Check if this is the user's FIRST EVER email approval (activation milestone)
+    try {
+      const priorApprovals = await pool.query(
+        "SELECT COUNT(*) as count FROM analytics_events WHERE user_id = $1 AND event_type = 'first_email_approved'",
+        [user.id]
+      );
+      if (parseInt(priorApprovals.rows[0].count) === 0) {
+        trackEvent('first_email_approved', user.id, {
+          email_id: parseInt(req.params.id)
+        }).catch(() => {});
+        // Set activated_at timestamp
+        pool.query('UPDATE users SET activated_at = NOW() WHERE id = $1 AND activated_at IS NULL', [user.id]).catch(() => {});
+      }
+    } catch (activationErr) {
+      console.error('Activation check error:', activationErr.message);
+    }
+
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Email approve error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/queue/emails/:id/edit-approve', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await approvalService.editAndApproveEmail(
+      parseInt(req.params.id), user.id, req.body
+    );
+
+    // Track edit-before-approve event (H2 hypothesis)
+    trackEvent('email_edited_approved', user.id, {
+      email_id: parseInt(req.params.id)
+    }).catch(() => {});
+
+    // Beta: Also check for first-ever activation
+    try {
+      const priorApprovals = await pool.query(
+        "SELECT COUNT(*) as count FROM analytics_events WHERE user_id = $1 AND event_type = 'first_email_approved'",
+        [user.id]
+      );
+      if (parseInt(priorApprovals.rows[0].count) === 0) {
+        trackEvent('first_email_approved', user.id, {
+          email_id: parseInt(req.params.id),
+          was_edited: true
+        }).catch(() => {});
+        pool.query('UPDATE users SET activated_at = NOW() WHERE id = $1 AND activated_at IS NULL', [user.id]).catch(() => {});
+      }
+    } catch (activationErr) {
+      console.error('Activation check error:', activationErr.message);
+    }
+
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Email edit-approve error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/queue/emails/:id/reject', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { reason } = req.body;
+    const result = await approvalService.rejectEmail(parseInt(req.params.id), user.id, reason);
+
+    // Track email rejection event (H2 hypothesis)
+    trackEvent('email_rejected', user.id, {
+      email_id: parseInt(req.params.id),
+      reason: reason || null
+    }).catch(() => {});
+
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Email reject error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/queue/emails/bulk-approve', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { email_ids } = req.body;
+    if (!email_ids || !Array.isArray(email_ids)) {
+      return res.status(400).json({ error: 'email_ids array required' });
+    }
+    const result = await approvalService.bulkApproveEmails(email_ids, user.id);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Bulk approve error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/queue/replies/:id/approve', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await approvalService.approveReplyDraft(parseInt(req.params.id), user.id);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Reply approve error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/queue/replies/:id/edit-approve', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await approvalService.editAndApproveReplyDraft(
+      parseInt(req.params.id), user.id, req.body
+    );
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Reply edit-approve error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/queue/replies/:id/reject', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { reason } = req.body;
+    const result = await approvalService.rejectReplyDraft(parseInt(req.params.id), user.id, reason);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Reply reject error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// --- Reply Processing ---
+app.post('/api/replies/:id/categorize', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await replyResponseService.categorizeReply(parseInt(req.params.id), user.id);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Categorize error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/replies/:id/draft-response', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await replyResponseService.draftResponse(parseInt(req.params.id), user.id);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Draft response error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/replies/process-new', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await replyResponseService.processNewReplies(user.id);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Process replies error:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// --- Pipeline Status (lightweight polling endpoint) ---
+app.get('/api/campaigns/:id/pipeline-status', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const campaignId = parseInt(req.params.id);
+
+    const result = await pool.query(`
+      SELECT
+        c.name,
+        c.discovery_status,
+        COALESCE(csc.status, 'draft') as sending_status,
+        (SELECT COUNT(*) FROM prospects WHERE campaign_id = $1) as total_prospects,
+        (SELECT COUNT(*) FROM generated_emails WHERE campaign_id = $1 AND status = 'pending_approval') as pending_approval,
+        (SELECT COUNT(*) FROM generated_emails WHERE campaign_id = $1 AND status = 'approved') as approved,
+        (SELECT COUNT(*) FROM campaign_sending_queue WHERE campaign_id = $1 AND status = 'sent') as sent,
+        (SELECT COUNT(*) FROM campaign_sending_queue WHERE campaign_id = $1 AND status = 'pending') as queued,
+        (SELECT COUNT(*) FROM campaign_sending_queue WHERE campaign_id = $1 AND status = 'failed') as failed
+      FROM campaigns c
+      LEFT JOIN campaign_sending_context csc ON c.id = csc.campaign_id
+      WHERE c.id = $1 AND c.user_id = $2
+    `, [campaignId, user.id]);
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Campaign not found' });
+    res.json({ success: true, ...result.rows[0] });
+  } catch (err) {
+    console.error('Pipeline status error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- CSV Export ---
+app.get('/api/campaigns/:id/export-csv', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const campaignId = parseInt(req.params.id);
+    const type = req.query.type || 'prospects';
+
+    // Verify ownership
+    const campaign = await pool.query(
+      'SELECT id, name FROM campaigns WHERE id = $1 AND user_id = $2',
+      [campaignId, user.id]
+    );
+    if (campaign.rows.length === 0) return res.status(404).json({ error: 'Campaign not found' });
+
+    const campaignName = campaign.rows[0].name.replace(/[^a-zA-Z0-9]/g, '_');
+
+    if (type === 'prospects') {
+      const result = await pool.query(`
+        SELECT
+          p.email, p.first_name, p.last_name, p.company_name, p.title,
+          p.status, p.fit_score, p.source, p.created_at
+        FROM prospects p
+        WHERE p.campaign_id = $1
+        ORDER BY p.created_at DESC
+      `, [campaignId]);
+
+      const header = 'email,first_name,last_name,company_name,title,status,fit_score,source,created_at';
+      const rows = result.rows.map(r =>
+        [r.email, r.first_name, r.last_name, r.company_name, r.title, r.status, r.fit_score, r.source, r.created_at]
+          .map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',')
+      );
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${campaignName}_prospects.csv"`);
+      res.send(header + '\n' + rows.join('\n'));
+    } else if (type === 'emails') {
+      const result = await pool.query(`
+        SELECT
+          ge.subject_line, ge.email_body, ge.status, ge.personalization_notes,
+          p.email as prospect_email, p.company_name, p.first_name, p.last_name,
+          ge.created_at
+        FROM generated_emails ge
+        JOIN prospects p ON ge.prospect_id = p.id
+        WHERE ge.campaign_id = $1
+        ORDER BY ge.created_at DESC
+      `, [campaignId]);
+
+      const header = 'prospect_email,company_name,first_name,last_name,subject_line,status,personalization_notes,created_at';
+      const rows = result.rows.map(r =>
+        [r.prospect_email, r.company_name, r.first_name, r.last_name, r.subject_line, r.status, r.personalization_notes, r.created_at]
+          .map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',')
+      );
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${campaignName}_emails.csv"`);
+      res.send(header + '\n' + rows.join('\n'));
+    } else {
+      res.status(400).json({ error: 'Invalid type. Use "prospects" or "emails".' });
+    }
+  } catch (err) {
+    console.error('CSV export error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Pipeline View ---
+app.get('/api/campaigns/:id/pipeline', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const campaignId = parseInt(req.params.id);
+
+    // Verify ownership
+    const campaign = await pool.query(
+      'SELECT id, name, description, discovery_status FROM campaigns WHERE id = $1 AND user_id = $2',
+      [campaignId, user.id]
+    );
+    if (campaign.rows.length === 0) return res.status(404).json({ error: 'Campaign not found' });
+
+    // Get stage counts
+    const stages = await pool.query(`
+      SELECT
+        p.status,
+        COUNT(*) as count,
+        AVG(p.fit_score)::int as avg_fit_score
+      FROM prospects p
+      WHERE p.campaign_id = $1
+      GROUP BY p.status
+      ORDER BY
+        CASE p.status
+          WHEN 'discovered' THEN 1
+          WHEN 'researched' THEN 2
+          WHEN 'email_drafted' THEN 3
+          WHEN 'approved' THEN 4
+          WHEN 'sent' THEN 5
+          WHEN 'replied' THEN 6
+          WHEN 'meeting_booked' THEN 7
+        END
+    `, [campaignId]);
+
+    // Email stats
+    const emailStats = await pool.query(`
+      SELECT
+        ge.status,
+        COUNT(*) as count
+      FROM generated_emails ge
+      WHERE ge.campaign_id = $1
+      GROUP BY ge.status
+    `, [campaignId]);
+
+    res.json({
+      success: true,
+      campaign: campaign.rows[0],
+      stages: stages.rows,
+      email_stats: emailStats.rows
+    });
+  } catch (err) {
+    console.error('Pipeline error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Onboarding ---
+app.post('/api/onboarding/complete', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { product_description, icp_description, sender_name, sender_email, campaign_name } = req.body;
+
+    if (!product_description || !icp_description) {
+      return res.status(400).json({ error: 'Product description and ICP are required' });
+    }
+
+    // Update user profile
+    await pool.query(`
+      UPDATE users SET
+        product_description = $1,
+        sender_name = $2,
+        sender_email = $3,
+        onboarding_completed = true
+      WHERE id = $4
+    `, [product_description, sender_name || null, sender_email || null, user.id]);
+
+    // Create first campaign
+    const campaignResult = await pool.query(`
+      INSERT INTO campaigns (user_id, name, description, icp_description, status)
+      VALUES ($1, $2, $3, $4, 'active')
+      RETURNING *
+    `, [user.id, campaign_name || 'My First Campaign', product_description, icp_description]);
+
+    const campaign = campaignResult.rows[0];
+
+    // Start discovery in background
+    discoveryService.discoverProspects(campaign.id, user.id, 25).catch(err => {
+      console.error('[Onboarding] Background discovery failed:', err.message);
+    });
+
+    trackEvent('onboarding_completed', user.id, {
+      campaign_id: campaign.id
+    }).catch(() => {});
+
+    res.json({
+      success: true,
+      campaign,
+      message: 'Onboarding complete! Discovering prospects...'
+    });
+  } catch (err) {
+    console.error('Onboarding error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/onboarding/status', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await pool.query(
+      'SELECT onboarding_completed, product_description, sender_name, sender_email FROM users WHERE id = $1',
+      [user.id]
+    );
+
+    res.json({ success: true, ...result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================
 // ANALYTICS & METRICS (Admin-only)
 // ============================================
 
@@ -1539,8 +2324,9 @@ app.get('/api/metrics', async (req, res) => {
     const user = await authenticateRequest(req, authService);
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-    // Admin check - only founder account can access (thmsnrtn@gmail.com)
-    if (user.email !== 'thmsnrtn@gmail.com') {
+    // Admin check — use is_admin column
+    const adminCheck = await pool.query('SELECT is_admin FROM users WHERE id = $1', [user.id]);
+    if (!adminCheck.rows[0]?.is_admin) {
       return res.status(403).json({ error: 'Forbidden - Admin access only' });
     }
 
@@ -1620,12 +2406,13 @@ app.get('/api/metrics', async (req, res) => {
       LIMIT 10
     `, [periods[period]]);
 
-    // Revenue - placeholder (would need Stripe integration)
-    const revenue = {
-      mrr: 0,
-      total: 0,
-      note: 'Stripe integration pending'
-    };
+    // Revenue — real MRR from Stripe service
+    let revenue = { mrr: 0, breakdown: {} };
+    try {
+      revenue = await stripeService.calculateMRR();
+    } catch (mrrErr) {
+      console.error('[Metrics] MRR calculation failed:', mrrErr.message);
+    }
 
     res.json({
       period,
@@ -1657,6 +2444,466 @@ app.get('/api/metrics', async (req, res) => {
     console.error('Metrics error:', err);
     res.status(500).json({ error: 'Failed to fetch metrics', message: err.message });
   }
+});
+
+// ============================================
+// BETA API ROUTES
+// ============================================
+
+// Submit beta feedback
+app.post('/api/beta/feedback', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { rating, what_worked, what_frustrated, would_recommend, pricing_feedback, missing_features } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: 'Rating (1-5) is required' });
+    }
+
+    await pool.query(`
+      INSERT INTO beta_feedback (user_id, rating, what_worked, what_frustrated, would_recommend, pricing_feedback, missing_features)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `, [user.id, rating, what_worked || null, what_frustrated || null, would_recommend ?? null, pricing_feedback || null, missing_features || null]);
+
+    trackEvent('beta_feedback_submitted', user.id, { rating, would_recommend }).catch(() => {});
+
+    res.json({ success: true, message: 'Thank you for your feedback!' });
+  } catch (err) {
+    console.error('Beta feedback error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Beta metrics dashboard (admin only)
+app.get('/api/beta/metrics', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const adminCheck = await pool.query('SELECT is_admin FROM users WHERE id = $1', [user.id]);
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Admin access only' });
+    }
+
+    // --- H1: Activation Funnel ---
+    const signups = await pool.query(
+      "SELECT COUNT(DISTINCT user_id) as count FROM analytics_events WHERE event_type = 'signup'"
+    );
+    const onboarded = await pool.query(
+      "SELECT COUNT(DISTINCT user_id) as count FROM analytics_events WHERE event_type = 'onboarding_completed'"
+    );
+    const csvImported = await pool.query(
+      "SELECT COUNT(DISTINCT user_id) as count FROM analytics_events WHERE event_type = 'csv_import'"
+    );
+    const activated = await pool.query(
+      "SELECT COUNT(DISTINCT user_id) as count FROM analytics_events WHERE event_type = 'first_email_approved'"
+    );
+    // Median time to activation
+    const activationTimes = await pool.query(`
+      SELECT
+        ae_signup.user_id,
+        EXTRACT(EPOCH FROM (ae_activated.created_at - ae_signup.created_at)) / 60 as minutes_to_activation
+      FROM analytics_events ae_signup
+      JOIN analytics_events ae_activated ON ae_signup.user_id = ae_activated.user_id
+      WHERE ae_signup.event_type = 'signup'
+        AND ae_activated.event_type = 'first_email_approved'
+      ORDER BY minutes_to_activation
+    `);
+    const activationTimesArr = activationTimes.rows.map(r => parseFloat(r.minutes_to_activation));
+    const medianActivationMin = activationTimesArr.length > 0
+      ? activationTimesArr[Math.floor(activationTimesArr.length / 2)]
+      : null;
+
+    // --- H2: Email Quality ---
+    const approvals = await pool.query(
+      "SELECT COUNT(*) as count FROM analytics_events WHERE event_type = 'email_approved'"
+    );
+    const editApprovals = await pool.query(
+      "SELECT COUNT(*) as count FROM analytics_events WHERE event_type = 'email_edited_approved'"
+    );
+    const rejections = await pool.query(
+      "SELECT COUNT(*) as count FROM analytics_events WHERE event_type = 'email_rejected'"
+    );
+    const totalReviewed = parseInt(approvals.rows[0].count) + parseInt(editApprovals.rows[0].count) + parseInt(rejections.rows[0].count);
+    const approvalRate = totalReviewed > 0 ? (parseInt(approvals.rows[0].count) / totalReviewed * 100).toFixed(1) : null;
+    const editRate = totalReviewed > 0 ? (parseInt(editApprovals.rows[0].count) / totalReviewed * 100).toFixed(1) : null;
+
+    // --- H3: Reply Rate ---
+    const emailsSentToReal = await pool.query(`
+      SELECT COUNT(*) as count FROM campaign_sending_queue csq
+      JOIN prospects p ON csq.prospect_id = p.id
+      WHERE csq.status = 'sent' AND p.source = 'csv_import'
+    `);
+    const repliesFromReal = await pool.query(`
+      SELECT COUNT(*) as count FROM prospect_reply_inbox pri
+      JOIN prospects p ON pri.prospect_id = p.id
+      WHERE p.source = 'csv_import'
+    `);
+    const sentCount = parseInt(emailsSentToReal.rows[0].count);
+    const replyCount = parseInt(repliesFromReal.rows[0].count);
+    const replyRate = sentCount > 0 ? (replyCount / sentCount * 100).toFixed(1) : null;
+
+    // --- H4: D7 Retention ---
+    const retentionData = await pool.query(`
+      SELECT
+        ae_act.user_id,
+        CASE WHEN EXISTS (
+          SELECT 1 FROM analytics_events ae_login
+          WHERE ae_login.user_id = ae_act.user_id
+            AND ae_login.event_type = 'login'
+            AND ae_login.created_at > ae_act.created_at
+            AND ae_login.created_at <= ae_act.created_at + INTERVAL '7 days'
+        ) THEN true ELSE false END as returned
+      FROM analytics_events ae_act
+      WHERE ae_act.event_type = 'first_email_approved'
+        AND ae_act.created_at <= NOW() - INTERVAL '7 days'
+    `);
+    const eligibleForRetention = retentionData.rows.length;
+    const returnedCount = retentionData.rows.filter(r => r.returned).length;
+    const d7RetentionRate = eligibleForRetention > 0 ? (returnedCount / eligibleForRetention * 100).toFixed(1) : null;
+
+    // --- H5: Willingness to Pay ---
+    const checkouts = await pool.query(
+      "SELECT COUNT(DISTINCT user_id) as count FROM analytics_events WHERE event_type = 'billing_checkout'"
+    );
+
+    // --- Beta Feedback Summary ---
+    const feedbackSummary = await pool.query(`
+      SELECT
+        COUNT(*) as total_responses,
+        AVG(rating)::numeric(3,1) as avg_rating,
+        COUNT(CASE WHEN would_recommend = true THEN 1 END) as would_recommend_count
+      FROM beta_feedback
+    `);
+
+    res.json({
+      success: true,
+      hypotheses: {
+        h1_activation: {
+          funnel: {
+            signups: parseInt(signups.rows[0].count),
+            onboarded: parseInt(onboarded.rows[0].count),
+            csv_imported: parseInt(csvImported.rows[0].count),
+            activated: parseInt(activated.rows[0].count)
+          },
+          activation_rate: parseInt(signups.rows[0].count) > 0
+            ? (parseInt(activated.rows[0].count) / parseInt(signups.rows[0].count) * 100).toFixed(1) + '%'
+            : 'N/A',
+          median_time_to_activation_min: medianActivationMin ? medianActivationMin.toFixed(1) : 'N/A',
+          pass_threshold: '≥70%',
+          status: parseInt(signups.rows[0].count) >= 15
+            ? (parseInt(activated.rows[0].count) / parseInt(signups.rows[0].count) >= 0.7 ? 'CONFIRMED' : 'REFUTED')
+            : 'INSUFFICIENT_DATA'
+        },
+        h2_email_quality: {
+          approved: parseInt(approvals.rows[0].count),
+          edited: parseInt(editApprovals.rows[0].count),
+          rejected: parseInt(rejections.rows[0].count),
+          total_reviewed: totalReviewed,
+          approval_rate: approvalRate ? approvalRate + '%' : 'N/A',
+          edit_rate: editRate ? editRate + '%' : 'N/A',
+          pass_threshold: '≥60% approval, <25% edits',
+          status: totalReviewed >= 200
+            ? (parseFloat(approvalRate) >= 60 && parseFloat(editRate) < 25 ? 'CONFIRMED' : 'REFUTED')
+            : 'INSUFFICIENT_DATA'
+        },
+        h3_reply_rate: {
+          emails_sent_to_real: sentCount,
+          replies_from_real: replyCount,
+          reply_rate: replyRate ? replyRate + '%' : 'N/A',
+          pass_threshold: '≥3%',
+          status: sentCount >= 500
+            ? (parseFloat(replyRate) >= 3 ? 'CONFIRMED' : 'REFUTED')
+            : 'INSUFFICIENT_DATA'
+        },
+        h4_retention: {
+          eligible_users: eligibleForRetention,
+          returned_d7: returnedCount,
+          d7_retention_rate: d7RetentionRate ? d7RetentionRate + '%' : 'N/A',
+          pass_threshold: '≥50%',
+          status: eligibleForRetention >= 12
+            ? (parseFloat(d7RetentionRate) >= 50 ? 'CONFIRMED' : 'REFUTED')
+            : 'INSUFFICIENT_DATA'
+        },
+        h5_willingness_to_pay: {
+          checkouts: parseInt(checkouts.rows[0].count),
+          activated_users: parseInt(activated.rows[0].count),
+          conversion_rate: parseInt(activated.rows[0].count) > 0
+            ? (parseInt(checkouts.rows[0].count) / parseInt(activated.rows[0].count) * 100).toFixed(1) + '%'
+            : 'N/A',
+          pass_threshold: '≥40% (checkout + stated intent)',
+          status: 'REQUIRES_INTERVIEW_DATA'
+        }
+      },
+      feedback: {
+        total_responses: parseInt(feedbackSummary.rows[0].total_responses),
+        avg_rating: feedbackSummary.rows[0].avg_rating,
+        would_recommend_count: parseInt(feedbackSummary.rows[0].would_recommend_count)
+      }
+    });
+  } catch (err) {
+    console.error('Beta metrics error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================
+// OPERATOR API ROUTES (Admin-only)
+// ============================================
+
+// Admin middleware helper
+async function requireAdmin(req, res) {
+  const user = await authenticateRequest(req, authService);
+  if (!user) { res.status(401).json({ error: 'Unauthorized' }); return null; }
+  const check = await pool.query('SELECT is_admin FROM users WHERE id = $1', [user.id]);
+  if (!check.rows[0]?.is_admin) { res.status(403).json({ error: 'Admin access only' }); return null; }
+  return user;
+}
+
+// Decision queue
+app.get('/api/operator/decisions', async (req, res) => {
+  try {
+    const user = await requireAdmin(req, res); if (!user) return;
+    const { category, urgency, gate, limit, offset } = req.query;
+    const result = await decisionQueueService.getPending({
+      category, urgency, safetyGate: gate ? parseInt(gate) : undefined,
+      limit: parseInt(limit) || 50, offset: parseInt(offset) || 0
+    });
+    res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/operator/decisions/:id/resolve', async (req, res) => {
+  try {
+    const user = await requireAdmin(req, res); if (!user) return;
+    const { status, outcome } = req.body;
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: 'Status must be approved or rejected' });
+    }
+    const result = await decisionQueueService.resolve(parseInt(req.params.id), status, outcome, 'admin');
+    res.json(result);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+app.get('/api/operator/decisions/counts', async (req, res) => {
+  try {
+    const user = await requireAdmin(req, res); if (!user) return;
+    const counts = await decisionQueueService.getCounts();
+    res.json(counts);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Operator digest
+app.get('/api/operator/digest', async (req, res) => {
+  try {
+    const user = await requireAdmin(req, res); if (!user) return;
+    const { period = 'weekly' } = req.query;
+    const digest = await decisionQueueService.getDigest(period);
+    res.json(digest);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// A/B experiments
+app.get('/api/operator/experiments', async (req, res) => {
+  try {
+    const user = await requireAdmin(req, res); if (!user) return;
+    const { status } = req.query;
+    const experiments = await productIntelService.listExperiments(status || null);
+    res.json({ experiments });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/operator/experiments', async (req, res) => {
+  try {
+    const user = await requireAdmin(req, res); if (!user) return;
+    const { name, target, variants, description, sample_size } = req.body;
+    if (!name || !target || !variants) return res.status(400).json({ error: 'name, target, and variants required' });
+    const experiment = await productIntelService.createExperiment(name, target, variants, description, sample_size);
+    res.json(experiment);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+app.post('/api/operator/experiments/:id/start', async (req, res) => {
+  try {
+    const user = await requireAdmin(req, res); if (!user) return;
+    const result = await productIntelService.startExperiment(parseInt(req.params.id));
+    res.json(result);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+app.get('/api/operator/experiments/:id/results', async (req, res) => {
+  try {
+    const user = await requireAdmin(req, res); if (!user) return;
+    const results = await productIntelService.evaluateExperiment(parseInt(req.params.id));
+    res.json(results);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+app.post('/api/operator/experiments/:id/conclude', async (req, res) => {
+  try {
+    const user = await requireAdmin(req, res); if (!user) return;
+    const { winner } = req.body;
+    const result = await productIntelService.concludeExperiment(parseInt(req.params.id), winner);
+    res.json(result);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Product signals
+app.get('/api/operator/signals', async (req, res) => {
+  try {
+    const user = await requireAdmin(req, res); if (!user) return;
+    const { type, status, limit } = req.query;
+    const signals = await productIntelService.getSignals({ signalType: type, status, limit: parseInt(limit) || 50 });
+    res.json({ signals });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/operator/signals', async (req, res) => {
+  try {
+    const user = await requireAdmin(req, res); if (!user) return;
+    const { signal_type, source, content } = req.body;
+    if (!signal_type || !content) return res.status(400).json({ error: 'signal_type and content required' });
+    const signal = await productIntelService.ingestSignal(signal_type, source || 'admin', content);
+    res.json(signal);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Support tickets (admin view)
+app.get('/api/operator/tickets', async (req, res) => {
+  try {
+    const user = await requireAdmin(req, res); if (!user) return;
+    const { status, priority, limit, offset } = req.query;
+    const tickets = await supportService.getTickets({
+      status, priority, limit: parseInt(limit) || 50, offset: parseInt(offset) || 0
+    });
+    res.json({ tickets });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/operator/tickets/:id/resolve', async (req, res) => {
+  try {
+    const user = await requireAdmin(req, res); if (!user) return;
+    const { resolution } = req.body;
+    if (!resolution) return res.status(400).json({ error: 'resolution is required' });
+    const ticket = await supportService.resolveTicket(parseInt(req.params.id), resolution);
+    res.json(ticket);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Engagement / retention data
+app.get('/api/operator/engagement', async (req, res) => {
+  try {
+    const user = await requireAdmin(req, res); if (!user) return;
+    const scores = await pool.query(`
+      SELECT es.user_id, es.score, es.churn_risk, es.components, es.last_calculated_at,
+             u.email, u.name, u.subscription_plan
+      FROM engagement_scores es
+      JOIN users u ON es.user_id = u.id
+      ORDER BY es.score ASC
+      LIMIT 100
+    `);
+    res.json({ users: scores.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Testimonial submission (user-facing)
+app.post('/api/operator/testimonial', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const { content } = req.body;
+    if (!content || content.trim().length < 10) return res.status(400).json({ error: 'Testimonial must be at least 10 characters' });
+    const result = await marketingService.processTestimonial(user.id, content);
+    res.json({ success: true, analysis: result });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================
+// SUPPORT API ROUTES (User-facing)
+// ============================================
+
+// Knowledge base search
+app.get('/api/support/kb/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.status(400).json({ error: 'Query parameter q is required' });
+    const results = await supportService.searchKB(q);
+    res.json({ articles: results });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Knowledge base list
+app.get('/api/support/kb', async (req, res) => {
+  try {
+    const { category } = req.query;
+    const articles = await supportService.listKB(category || null);
+    res.json({ articles });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Mark KB article helpful
+app.post('/api/support/kb/:id/helpful', async (req, res) => {
+  try {
+    await supportService.markHelpful(parseInt(req.params.id));
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Create support ticket
+app.post('/api/support/ticket', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const { subject, description, priority } = req.body;
+    if (!subject) return res.status(400).json({ error: 'Subject is required' });
+    const ticket = await supportService.createTicket(user.id, subject, description, priority || 'p2');
+    res.json({ success: true, ticket });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Get user's own tickets
+app.get('/api/support/tickets', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const result = await pool.query(
+      'SELECT * FROM support_tickets WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20',
+      [user.id]
+    );
+    res.json({ tickets: result.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// A/B experiment variant assignment (user-facing)
+app.get('/api/experiment/:experimentId/variant', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    const sessionId = req.cookies?.analytics_session || null;
+    const variant = await productIntelService.assignVariant(
+      parseInt(req.params.experimentId),
+      user?.id || null,
+      sessionId
+    );
+    res.json({ variant });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// A/B experiment conversion tracking (user-facing)
+app.post('/api/experiment/:experimentId/convert', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    const sessionId = req.cookies?.analytics_session || null;
+    const { event } = req.body;
+    await productIntelService.recordConversion(
+      parseInt(req.params.experimentId),
+      user?.id || null,
+      sessionId,
+      event || 'default'
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 // ============================================
@@ -1703,27 +2950,14 @@ app.use((err, req, res, next) => {
 // ============================================
 
 app.use((req, res) => {
-  // If a file is being requested but not found, it's a 404
-  // Serve branded 404 page for HTML requests
+  // Serve branded 404 page for HTML requests (from cache)
   const accept = req.headers.accept || '';
   if (accept.includes('text/html')) {
-    res.status(404).type('html').send(fs.readFileSync(path.join(__dirname, 'public/404.html'), 'utf8'));
+    const cached404 = htmlCache.get('404.html');
+    res.status(404).type('html').send(cached404 || '<h1>404 - Not Found</h1>');
   } else {
-    // Return JSON for API requests
     res.status(404).json({ error: 'Not found' });
   }
-});
-
-// ============================================
-// ERROR HANDLER (must be LAST)
-// ============================================
-
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).json({
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'production' ? undefined : err.message
-  });
 });
 
 // ============================================
@@ -1740,12 +2974,14 @@ async function startServer() {
     const migrateScript = require('./migrate.js');
     console.log('Database migrations completed');
 
-    // Initialize scheduler
-    initializeScheduler(pool);
+    // Initialize scheduler with AI service
+    const AIService = require('./lib/ai-service');
+    const aiService = new AIService(pool);
+    initializeScheduler(pool, aiService);
     console.log('Scheduler initialized');
 
-    // Start server
-    app.listen(port, () => {
+    // Start server (assign to `server` for graceful shutdown)
+    server = app.listen(port, () => {
       console.log(`Koldly server running on port ${port}`);
     });
   } catch (err) {
@@ -1753,6 +2989,37 @@ async function startServer() {
     process.exit(1);
   }
 }
+
+// ============================================
+// GRACEFUL SHUTDOWN
+// ============================================
+
+let server;
+
+function gracefulShutdown(signal) {
+  console.log(`\n[Shutdown] ${signal} received. Shutting down gracefully...`);
+
+  if (server) {
+    server.close(() => {
+      console.log('[Shutdown] HTTP server closed');
+      pool.end(() => {
+        console.log('[Shutdown] Database pool closed');
+        process.exit(0);
+      });
+    });
+
+    // Force exit after 10 seconds
+    setTimeout(() => {
+      console.error('[Shutdown] Forced exit after timeout');
+      process.exit(1);
+    }, 10000);
+  } else {
+    process.exit(0);
+  }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 startServer();
 

@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Operator Dashboard - Koldly</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  </style>
+  <script src="/js/notifications.js"></script>
+  <script src="/js/error-handler.js"></script>
+</head>
+<body class="bg-slate-900 text-white min-h-screen">
+  <div class="max-w-7xl mx-auto p-8">
+    <!-- Header -->
+    <div class="mb-8 flex items-center justify-between">
+      <div>
+        <h1 class="text-4xl font-bold mb-2">Operator Dashboard</h1>
+        <p class="text-slate-400">Autonomous operations intelligence center</p>
+      </div>
+      <div class="flex gap-3">
+        <a href="/admin/metrics" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors">Metrics →</a>
+        <a href="/dashboard" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors">Dashboard →</a>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading" class="text-center py-20">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+      <p class="mt-4 text-slate-400">Loading operator data...</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="error" class="hidden bg-red-900/20 border border-red-500 rounded-lg p-6 mb-6">
+      <p class="text-red-400 font-semibold">Error loading data</p>
+      <p class="text-red-300 text-sm mt-2" id="error-message"></p>
+    </div>
+
+    <!-- Main Content -->
+    <div id="content" class="hidden">
+
+      <!-- Decision Queue Summary -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-slate-800 rounded-lg p-6 border border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-slate-400 text-sm font-medium">Pending Decisions</span>
+            <span class="text-2xl">📋</span>
+          </div>
+          <div class="text-4xl font-bold" id="pending-count">-</div>
+          <div class="text-sm text-slate-400 mt-2">Awaiting review</div>
+        </div>
+        <div class="bg-slate-800 rounded-lg p-6 border border-red-700/50">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-slate-400 text-sm font-medium">Critical</span>
+            <span class="text-2xl">🚨</span>
+          </div>
+          <div class="text-4xl font-bold text-red-400" id="critical-count">-</div>
+          <div class="text-sm text-slate-400 mt-2">Needs immediate action</div>
+        </div>
+        <div class="bg-slate-800 rounded-lg p-6 border border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-slate-400 text-sm font-medium">Auto-Executed (24h)</span>
+            <span class="text-2xl">⚡</span>
+          </div>
+          <div class="text-4xl font-bold text-green-400" id="auto-executed-count">-</div>
+          <div class="text-sm text-slate-400 mt-2">Gate 0-1 actions</div>
+        </div>
+        <div class="bg-slate-800 rounded-lg p-6 border border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-slate-400 text-sm font-medium">Approved (24h)</span>
+            <span class="text-2xl">✅</span>
+          </div>
+          <div class="text-4xl font-bold text-blue-400" id="approved-count">-</div>
+          <div class="text-sm text-slate-400 mt-2">Human-approved</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex gap-2 mb-6 border-b border-slate-700 pb-2">
+        <button onclick="switchTab('decisions')" class="tab-btn px-4 py-2 rounded-t-lg font-medium text-sm transition-colors bg-orange-600" data-tab="decisions">Decision Queue</button>
+        <button onclick="switchTab('engagement')" class="tab-btn px-4 py-2 rounded-t-lg font-medium text-sm transition-colors bg-slate-700 hover:bg-slate-600" data-tab="engagement">Engagement</button>
+        <button onclick="switchTab('tickets')" class="tab-btn px-4 py-2 rounded-t-lg font-medium text-sm transition-colors bg-slate-700 hover:bg-slate-600" data-tab="tickets">Support Tickets</button>
+        <button onclick="switchTab('experiments')" class="tab-btn px-4 py-2 rounded-t-lg font-medium text-sm transition-colors bg-slate-700 hover:bg-slate-600" data-tab="experiments">Experiments</button>
+        <button onclick="switchTab('digest')" class="tab-btn px-4 py-2 rounded-t-lg font-medium text-sm transition-colors bg-slate-700 hover:bg-slate-600" data-tab="digest">Digest</button>
+      </div>
+
+      <!-- Decision Queue Tab -->
+      <div id="tab-decisions" class="tab-content">
+        <div class="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+          <div class="p-4 border-b border-slate-700 flex items-center justify-between">
+            <h2 class="text-xl font-bold">Pending Decisions</h2>
+            <div class="flex gap-2">
+              <select id="decision-category-filter" onchange="loadDecisions()" class="bg-slate-700 text-sm rounded px-3 py-1.5 border border-slate-600">
+                <option value="">All Categories</option>
+                <option value="retention">Retention</option>
+                <option value="onboarding">Onboarding</option>
+                <option value="support">Support</option>
+                <option value="marketing">Marketing</option>
+                <option value="revenue">Revenue</option>
+              </select>
+            </div>
+          </div>
+          <div id="decisions-list" class="divide-y divide-slate-700">
+            <div class="p-6 text-center text-slate-400">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Engagement Tab -->
+      <div id="tab-engagement" class="tab-content hidden">
+        <div class="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+          <div class="p-4 border-b border-slate-700">
+            <h2 class="text-xl font-bold">User Engagement Scores</h2>
+            <p class="text-sm text-slate-400 mt-1">Sorted by lowest engagement (highest churn risk)</p>
+          </div>
+          <div id="engagement-list" class="divide-y divide-slate-700">
+            <div class="p-6 text-center text-slate-400">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tickets Tab -->
+      <div id="tab-tickets" class="tab-content hidden">
+        <div class="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+          <div class="p-4 border-b border-slate-700 flex items-center justify-between">
+            <h2 class="text-xl font-bold">Support Tickets</h2>
+            <select id="ticket-status-filter" onchange="loadTickets()" class="bg-slate-700 text-sm rounded px-3 py-1.5 border border-slate-600">
+              <option value="">All</option>
+              <option value="open">Open</option>
+              <option value="escalated">Escalated</option>
+              <option value="ai_resolved">AI Resolved</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+          <div id="tickets-list" class="divide-y divide-slate-700">
+            <div class="p-6 text-center text-slate-400">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Experiments Tab -->
+      <div id="tab-experiments" class="tab-content hidden">
+        <div class="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+          <div class="p-4 border-b border-slate-700 flex items-center justify-between">
+            <h2 class="text-xl font-bold">A/B Experiments</h2>
+            <button onclick="showCreateExperiment()" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg text-sm font-medium transition-colors">+ New Experiment</button>
+          </div>
+          <div id="experiments-list" class="divide-y divide-slate-700">
+            <div class="p-6 text-center text-slate-400">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Digest Tab -->
+      <div id="tab-digest" class="tab-content hidden">
+        <div class="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+          <div class="p-4 border-b border-slate-700 flex gap-3">
+            <button onclick="loadDigest('weekly')" class="digest-btn px-4 py-2 bg-orange-600 rounded-lg text-sm font-medium" data-period="weekly">Weekly</button>
+            <button onclick="loadDigest('monthly')" class="digest-btn px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium" data-period="monthly">Monthly</button>
+            <button onclick="loadDigest('quarterly')" class="digest-btn px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium" data-period="quarterly">Quarterly</button>
+          </div>
+          <div id="digest-content" class="p-6">
+            <div class="text-center text-slate-400">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('auth_token');
+    if (!token) window.location.href = '/login?redirect=/operator';
+
+    const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+    // Tab switching
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`tab-${tab}`).classList.remove('hidden');
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-orange-600');
+        btn.classList.add('bg-slate-700');
+      });
+      document.querySelector(`[data-tab="${tab}"]`).classList.remove('bg-slate-700');
+      document.querySelector(`[data-tab="${tab}"]`).classList.add('bg-orange-600');
+
+      if (tab === 'engagement') loadEngagement();
+      if (tab === 'tickets') loadTickets();
+      if (tab === 'experiments') loadExperiments();
+      if (tab === 'digest') loadDigest('weekly');
+    }
+
+    // ---- Decision Queue ----
+    async function loadCounts() {
+      try {
+        const res = await fetch('/api/operator/decisions/counts', { headers });
+        if (!res.ok) throw new Error(res.status === 403 ? 'Admin access only' : 'Failed');
+        const data = await res.json();
+        document.getElementById('pending-count').textContent = data.pending || 0;
+        document.getElementById('critical-count').textContent = data.critical || 0;
+        document.getElementById('auto-executed-count').textContent = data.auto_executed_24h || 0;
+        document.getElementById('approved-count').textContent = data.approved_24h || 0;
+      } catch (err) {
+        document.getElementById('error-message').textContent = err.message;
+        document.getElementById('error').classList.remove('hidden');
+      }
+    }
+
+    async function loadDecisions() {
+      const category = document.getElementById('decision-category-filter').value;
+      const url = `/api/operator/decisions?limit=30${category ? `&category=${category}` : ''}`;
+      try {
+        const res = await fetch(url, { headers });
+        const data = await res.json();
+        const list = document.getElementById('decisions-list');
+
+        if (!data.decisions || data.decisions.length === 0) {
+          list.innerHTML = '<div class="p-6 text-center text-slate-400">No pending decisions</div>';
+          return;
+        }
+
+        list.innerHTML = data.decisions.map(d => {
+          const urgencyColors = { critical: 'text-red-400 bg-red-900/30', high: 'text-orange-400 bg-orange-900/30', medium: 'text-yellow-400 bg-yellow-900/30', low: 'text-green-400 bg-green-900/30' };
+          const color = urgencyColors[d.urgency] || 'text-slate-400';
+          const action = typeof d.proposed_action === 'string' ? JSON.parse(d.proposed_action) : d.proposed_action;
+          return `
+            <div class="p-4 hover:bg-slate-700/50">
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs font-medium px-2 py-0.5 rounded ${color}">${d.urgency}</span>
+                    <span class="text-xs text-slate-500">Gate ${d.safety_gate}</span>
+                    <span class="text-xs text-slate-500">${d.category}</span>
+                    <span class="text-xs text-slate-500">${d.status}</span>
+                  </div>
+                  <p class="font-medium">${esc(d.title)}</p>
+                  ${action?.email ? `<p class="text-sm text-slate-400 mt-1">${esc(action.email)}</p>` : ''}
+                  <p class="text-xs text-slate-500 mt-1">${new Date(d.created_at).toLocaleString()}</p>
+                </div>
+                ${d.status === 'pending' || d.status === 'scheduled' ? `
+                  <div class="flex gap-2 ml-4">
+                    <button onclick="resolveDecision(${d.id}, 'approved')" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded text-sm font-medium transition-colors">Approve</button>
+                    <button onclick="resolveDecision(${d.id}, 'rejected')" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-sm font-medium transition-colors">Reject</button>
+                  </div>
+                ` : ''}
+              </div>
+            </div>`;
+        }).join('');
+      } catch (err) {
+        document.getElementById('decisions-list').innerHTML = `<div class="p-6 text-center text-red-400">${err.message}</div>`;
+      }
+    }
+
+    async function resolveDecision(id, status) {
+      try {
+        await fetch(`/api/operator/decisions/${id}/resolve`, {
+          method: 'POST', headers, body: JSON.stringify({ status })
+        });
+        loadDecisions();
+        loadCounts();
+      } catch (err) { alert('Failed: ' + err.message); }
+    }
+
+    // ---- Engagement ----
+    async function loadEngagement() {
+      try {
+        const res = await fetch('/api/operator/engagement', { headers });
+        const data = await res.json();
+        const list = document.getElementById('engagement-list');
+
+        if (!data.users || data.users.length === 0) {
+          list.innerHTML = '<div class="p-6 text-center text-slate-400">No engagement data yet</div>';
+          return;
+        }
+
+        list.innerHTML = data.users.map(u => {
+          const riskColors = { critical: 'text-red-400', high: 'text-orange-400', medium: 'text-yellow-400', low: 'text-green-400' };
+          const barColor = u.churn_risk === 'critical' ? 'bg-red-500' : u.churn_risk === 'high' ? 'bg-orange-500' : u.churn_risk === 'medium' ? 'bg-yellow-500' : 'bg-green-500';
+          return `
+            <div class="p-4 flex items-center gap-4">
+              <div class="w-16 text-center">
+                <div class="text-2xl font-bold ${riskColors[u.churn_risk] || ''}">${u.score}</div>
+                <div class="text-xs text-slate-500">/100</div>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium">${esc(u.name || u.email)}</p>
+                <p class="text-sm text-slate-400">${esc(u.email)} · ${u.subscription_plan || 'free'}</p>
+              </div>
+              <div class="w-32">
+                <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+                  <div class="${barColor} h-full rounded-full" style="width: ${u.score}%"></div>
+                </div>
+                <p class="text-xs ${riskColors[u.churn_risk] || ''} mt-1 text-right">${u.churn_risk} risk</p>
+              </div>
+            </div>`;
+        }).join('');
+      } catch (err) {
+        document.getElementById('engagement-list').innerHTML = `<div class="p-6 text-center text-red-400">${err.message}</div>`;
+      }
+    }
+
+    // ---- Tickets ----
+    async function loadTickets() {
+      const status = document.getElementById('ticket-status-filter').value;
+      const url = `/api/operator/tickets?limit=30${status ? `&status=${status}` : ''}`;
+      try {
+        const res = await fetch(url, { headers });
+        const data = await res.json();
+        const list = document.getElementById('tickets-list');
+
+        if (!data.tickets || data.tickets.length === 0) {
+          list.innerHTML = '<div class="p-6 text-center text-slate-400">No tickets</div>';
+          return;
+        }
+
+        list.innerHTML = data.tickets.map(t => {
+          const prioColors = { p0: 'text-red-400 bg-red-900/30', p1: 'text-orange-400 bg-orange-900/30', p2: 'text-yellow-400 bg-yellow-900/30', p3: 'text-slate-400 bg-slate-700' };
+          const statusColors = { open: 'text-blue-400', escalated: 'text-orange-400', ai_resolved: 'text-green-400', closed: 'text-slate-500' };
+          return `
+            <div class="p-4">
+              <div class="flex items-start justify-between">
+                <div>
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs font-medium px-2 py-0.5 rounded ${prioColors[t.priority] || ''}">${t.priority}</span>
+                    <span class="text-xs ${statusColors[t.status] || ''}">${t.status}</span>
+                    <span class="text-xs text-slate-500">${t.category || ''}</span>
+                  </div>
+                  <p class="font-medium">${esc(t.subject)}</p>
+                  <p class="text-sm text-slate-400 mt-1">${esc(t.user_email || '')} · ${new Date(t.created_at).toLocaleString()}</p>
+                  ${t.ai_resolution ? `<p class="text-sm text-green-400/70 mt-1">AI: ${esc(t.ai_resolution.substring(0, 120))}...</p>` : ''}
+                </div>
+                ${t.status !== 'closed' ? `
+                  <button onclick="resolveTicket(${t.id})" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium ml-4">Resolve</button>
+                ` : ''}
+              </div>
+            </div>`;
+        }).join('');
+      } catch (err) {
+        document.getElementById('tickets-list').innerHTML = `<div class="p-6 text-center text-red-400">${err.message}</div>`;
+      }
+    }
+
+    async function resolveTicket(id) {
+      const resolution = prompt('Resolution notes:');
+      if (!resolution) return;
+      try {
+        await fetch(`/api/operator/tickets/${id}/resolve`, {
+          method: 'POST', headers, body: JSON.stringify({ resolution })
+        });
+        loadTickets();
+      } catch (err) { alert('Failed: ' + err.message); }
+    }
+
+    // ---- Experiments ----
+    async function loadExperiments() {
+      try {
+        const res = await fetch('/api/operator/experiments', { headers });
+        const data = await res.json();
+        const list = document.getElementById('experiments-list');
+
+        if (!data.experiments || data.experiments.length === 0) {
+          list.innerHTML = '<div class="p-6 text-center text-slate-400">No experiments yet</div>';
+          return;
+        }
+
+        list.innerHTML = data.experiments.map(e => {
+          const statusColors = { draft: 'text-slate-400', running: 'text-blue-400', concluded: 'text-green-400' };
+          const variants = typeof e.variants === 'string' ? JSON.parse(e.variants) : e.variants;
+          return `
+            <div class="p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs ${statusColors[e.status] || ''} font-medium">${e.status}</span>
+                    <span class="text-xs text-slate-500">${e.target}</span>
+                  </div>
+                  <p class="font-medium">${esc(e.name)}</p>
+                  <p class="text-sm text-slate-400 mt-1">Variants: ${(variants || []).map(v => typeof v === 'object' ? v.name : v).join(', ')}</p>
+                  ${e.winning_variant ? `<p class="text-sm text-green-400 mt-1">Winner: ${esc(e.winning_variant)}</p>` : ''}
+                </div>
+                <div class="flex gap-2">
+                  ${e.status === 'draft' ? `<button onclick="startExperiment(${e.id})" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm">Start</button>` : ''}
+                  ${e.status === 'running' ? `<button onclick="viewResults(${e.id})" class="px-3 py-1.5 bg-slate-600 hover:bg-slate-500 rounded text-sm">Results</button>` : ''}
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+      } catch (err) {
+        document.getElementById('experiments-list').innerHTML = `<div class="p-6 text-center text-red-400">${err.message}</div>`;
+      }
+    }
+
+    async function startExperiment(id) {
+      if (!confirm('Start this experiment?')) return;
+      try {
+        await fetch(`/api/operator/experiments/${id}/start`, { method: 'POST', headers });
+        loadExperiments();
+      } catch (err) { alert('Failed: ' + err.message); }
+    }
+
+    async function viewResults(id) {
+      try {
+        const res = await fetch(`/api/operator/experiments/${id}/results`, { headers });
+        const data = await res.json();
+        alert(JSON.stringify(data, null, 2));
+      } catch (err) { alert('Failed: ' + err.message); }
+    }
+
+    function showCreateExperiment() {
+      const name = prompt('Experiment name:');
+      if (!name) return;
+      const target = prompt('Target (e.g. "signup_page", "email_subject"):');
+      if (!target) return;
+      const variantsStr = prompt('Variants (comma-separated):');
+      if (!variantsStr) return;
+      const variants = variantsStr.split(',').map(v => v.trim()).filter(Boolean);
+      fetch('/api/operator/experiments', {
+        method: 'POST', headers,
+        body: JSON.stringify({ name, target, variants })
+      }).then(() => loadExperiments()).catch(err => alert('Failed: ' + err.message));
+    }
+
+    // ---- Digest ----
+    async function loadDigest(period) {
+      document.querySelectorAll('.digest-btn').forEach(btn => {
+        btn.classList.remove('bg-orange-600');
+        btn.classList.add('bg-slate-700');
+      });
+      document.querySelector(`[data-period="${period}"]`).classList.remove('bg-slate-700');
+      document.querySelector(`[data-period="${period}"]`).classList.add('bg-orange-600');
+
+      const container = document.getElementById('digest-content');
+      container.innerHTML = '<div class="text-center text-slate-400">Loading...</div>';
+
+      try {
+        const res = await fetch(`/api/operator/digest?period=${period}`, { headers });
+        const data = await res.json();
+
+        const s = data.summary || {};
+        container.innerHTML = `
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-slate-700/50 rounded-lg p-4">
+              <div class="text-2xl font-bold">${s.total || 0}</div>
+              <div class="text-xs text-slate-400">Total decisions</div>
+            </div>
+            <div class="bg-slate-700/50 rounded-lg p-4">
+              <div class="text-2xl font-bold text-green-400">${s.auto_executed || 0}</div>
+              <div class="text-xs text-slate-400">Auto-executed</div>
+            </div>
+            <div class="bg-slate-700/50 rounded-lg p-4">
+              <div class="text-2xl font-bold text-blue-400">${s.approved || 0}</div>
+              <div class="text-xs text-slate-400">Approved</div>
+            </div>
+            <div class="bg-slate-700/50 rounded-lg p-4">
+              <div class="text-2xl font-bold text-red-400">${s.rejected || 0}</div>
+              <div class="text-xs text-slate-400">Rejected</div>
+            </div>
+          </div>
+          ${s.by_category ? `
+            <h3 class="text-lg font-semibold mb-3">By Category</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              ${Object.entries(s.by_category).map(([cat, count]) =>
+                `<div class="bg-slate-700/30 rounded-lg p-3"><div class="font-bold">${count}</div><div class="text-xs text-slate-400">${cat}</div></div>`
+              ).join('')}
+            </div>
+          ` : ''}
+          ${data.recent_decisions && data.recent_decisions.length > 0 ? `
+            <h3 class="text-lg font-semibold mb-3">Recent Decisions</h3>
+            <div class="space-y-2">
+              ${data.recent_decisions.slice(0, 10).map(d => `
+                <div class="bg-slate-700/30 rounded-lg p-3 flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium">${esc(d.title)}</p>
+                    <p class="text-xs text-slate-500">${d.category} · ${d.status} · ${new Date(d.created_at).toLocaleDateString()}</p>
+                  </div>
+                  <span class="text-xs px-2 py-0.5 rounded ${d.status === 'approved' ? 'bg-green-900/30 text-green-400' : d.status === 'rejected' ? 'bg-red-900/30 text-red-400' : d.status === 'auto_executed' ? 'bg-blue-900/30 text-blue-400' : 'bg-slate-700 text-slate-400'}">${d.status}</span>
+                </div>
+              `).join('')}
+            </div>
+          ` : '<p class="text-slate-400">No decisions in this period</p>'}
+        `;
+      } catch (err) {
+        container.innerHTML = `<div class="text-red-400">${err.message}</div>`;
+      }
+    }
+
+    // ---- Helpers ----
+    function esc(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // ---- Init ----
+    async function init() {
+      try {
+        await loadCounts();
+        await loadDecisions();
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('content').classList.remove('hidden');
+      } catch (err) {
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('error-message').textContent = err.message;
+        document.getElementById('error').classList.remove('hidden');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 {
-  "name": "express-postgres-starter",
+  "name": "koldly",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
-    "bcrypt": "^5.1.1",
+    "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "express": "^4.18.2",
@@ -23,8 +23,8 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.0",
     "node-cron": "^4.2.1",
-    "openai": "^4.77.0",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "stripe": "^17.5.0"
   },
   "devDependencies": {
     "jest": "^29.7.0"

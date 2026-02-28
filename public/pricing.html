@@ -262,6 +262,24 @@
         </div>
 
         <div class="pricing-grid">
+            <!-- Free Plan -->
+            <div class="pricing-card">
+                <div class="plan-name">Free</div>
+                <div class="plan-description">Try Koldly with no commitment</div>
+                <div class="price">
+                    <span class="price-amount">$0</span>
+                    <span class="price-period">/month</span>
+                </div>
+                <ul class="features">
+                    <li>25 prospects per month</li>
+                    <li>1 active campaign</li>
+                    <li>AI-powered prospect discovery</li>
+                    <li>Personalized email generation</li>
+                    <li>Approval queue</li>
+                </ul>
+                <a href="/signup" class="cta-button secondary">Get Started Free</a>
+            </div>
+
             <!-- Starter Plan -->
             <div class="pricing-card">
                 <div class="plan-name">Starter</div>
@@ -278,7 +296,7 @@
                     <li>Basic analytics dashboard</li>
                     <li>Email support</li>
                 </ul>
-                <a href="https://buy.stripe.com/eVq6oH5zMgWI5440qCdjV0B" class="cta-button">Get Started</a>
+                <button class="cta-button" onclick="startCheckout('starter')">Get Started</button>
             </div>
 
             <!-- Growth Plan (Featured) -->
@@ -299,7 +317,7 @@
                     <li>Priority email support</li>
                     <li>Advanced analytics & reporting</li>
                 </ul>
-                <a href="https://buy.stripe.com/3cI00j5zM35SeEEflwdjV0C" class="cta-button">Get Started</a>
+                <button class="cta-button" onclick="startCheckout('growth')">Get Started</button>
             </div>
 
             <!-- Scale Plan -->
@@ -321,7 +339,7 @@
                     <li>Priority feature requests</li>
                     <li>API access (coming soon)</li>
                 </ul>
-                <a href="https://buy.stripe.com/28E8wP6DQ21O0NO8X8djV0D" class="cta-button">Get Started</a>
+                <button class="cta-button" onclick="startCheckout('scale')">Get Started</button>
             </div>
         </div>
 
@@ -340,7 +358,7 @@
 
             <div class="faq-item">
                 <div class="faq-question">Do you offer a free trial?</div>
-                <div class="faq-answer">We offer a 7-day money-back guarantee. Try any plan risk-free, and if you're not satisfied, we'll refund you in full.</div>
+                <div class="faq-answer">We offer a free plan to get started, plus a 7-day money-back guarantee on paid plans. If you're not satisfied, contact <a href="mailto:support@koldly.com" style="color: var(--accent);">support@koldly.com</a> within 7 days for a full refund.</div>
             </div>
 
             <div class="faq-item">
@@ -354,5 +372,45 @@
             </div>
         </div>
     </div>
+
+    <script>
+    async function startCheckout(plan) {
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+            // Not logged in — redirect to signup then come back
+            window.location.href = '/signup?redirect=/pricing';
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/billing/checkout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ plan: plan })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                if (res.status === 401) {
+                    window.location.href = '/signup?redirect=/pricing';
+                    return;
+                }
+                throw new Error(data.error || 'Checkout failed');
+            }
+
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                throw new Error('No checkout URL returned');
+            }
+        } catch (err) {
+            alert('Error starting checkout: ' + err.message);
+        }
+    }
+    </script>
 </body>
 </html>

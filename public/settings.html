@@ -18,6 +18,7 @@
         :root {
             --bg: #0A0A0A;
             --bg-card: #141414;
+            --bg-card-hover: #1A1A1A;
             --accent: #FF6B35;
             --accent-glow: rgba(255, 107, 53, 0.15);
             --text: #F5F5F5;
@@ -155,6 +156,11 @@
             background: var(--accent-glow);
             color: var(--accent);
             font-weight: 600;
+        }
+
+        .sidebar-icon {
+            font-size: 18px;
+            width: 24px;
         }
 
         /* Content Area */
@@ -351,37 +357,59 @@
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-section">
+                <div class="sidebar-title">Main</div>
                 <div class="sidebar-item" onclick="navigateTo('/dashboard')">
-                    <span style="font-size: 18px;">📊</span>
+                    <span class="sidebar-icon">📊</span>
                     <span>Dashboard</span>
                 </div>
+                <div class="sidebar-item" onclick="navigateTo('/queue')">
+                    <span class="sidebar-icon">📋</span>
+                    <span>Approval Queue</span>
+                </div>
                 <div class="sidebar-item" onclick="navigateTo('/campaigns')">
-                    <span style="font-size: 18px;">📧</span>
+                    <span class="sidebar-icon">📁</span>
                     <span>Campaigns</span>
                 </div>
+                <div class="sidebar-item" onclick="navigateTo('/pipeline')">
+                    <span class="sidebar-icon">🔄</span>
+                    <span>Pipeline</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">Tools</div>
+                <div class="sidebar-item" onclick="navigateTo('/inbox')">
+                    <span class="sidebar-icon">📥</span>
+                    <span>Inbox</span>
+                </div>
                 <div class="sidebar-item" onclick="navigateTo('/analytics')">
-                    <span style="font-size: 18px;">📈</span>
+                    <span class="sidebar-icon">📈</span>
                     <span>Analytics</span>
                 </div>
                 <div class="sidebar-item" onclick="navigateTo('/integrations')">
-                    <span style="font-size: 18px;">🔗</span>
+                    <span class="sidebar-icon">🔗</span>
                     <span>Integrations</span>
                 </div>
             </div>
             <div class="sidebar-section">
-                <div class="sidebar-title">Settings</div>
-                <div class="sidebar-item active" onclick="navigateTo('/settings')">
-                    <span style="font-size: 18px;">⚙️</span>
-                    <span>Settings</span>
-                </div>
+                <div class="sidebar-title">Account</div>
                 <div class="sidebar-item" onclick="navigateTo('/billing')">
-                    <span style="font-size: 18px;">💳</span>
+                    <span class="sidebar-icon">💳</span>
                     <span>Billing</span>
                 </div>
+                <div class="sidebar-item active" onclick="navigateTo('/settings')">
+                    <span class="sidebar-icon">⚙️</span>
+                    <span>Settings</span>
+                </div>
                 <div class="sidebar-item" onclick="logout()">
-                    <span style="font-size: 18px;">🚪</span>
+                    <span class="sidebar-icon">🚪</span>
                     <span>Logout</span>
                 </div>
+            </div>
+            <div class="sidebar-section" style="margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border);">
+                <a href="mailto:support@koldly.com" class="sidebar-item" style="font-size: 12px;">
+                    <span class="sidebar-icon">📧</span>
+                    <span>support@koldly.com</span>
+                </a>
             </div>
         </aside>
 

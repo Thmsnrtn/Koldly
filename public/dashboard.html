@@ -861,13 +861,29 @@
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-section">
+                <div class="sidebar-title">Main</div>
                 <div class="sidebar-item active" onclick="navigateTo('/dashboard')">
                     <span class="sidebar-icon">📊</span>
                     <span>Dashboard</span>
                 </div>
+                <div class="sidebar-item" onclick="navigateTo('/queue')">
+                    <span class="sidebar-icon">📋</span>
+                    <span>Approval Queue</span>
+                </div>
                 <div class="sidebar-item" onclick="navigateTo('/campaigns')">
-                    <span class="sidebar-icon">📧</span>
+                    <span class="sidebar-icon">📁</span>
                     <span>Campaigns</span>
+                </div>
+                <div class="sidebar-item" onclick="navigateTo('/pipeline')">
+                    <span class="sidebar-icon">🔄</span>
+                    <span>Pipeline</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">Tools</div>
+                <div class="sidebar-item" onclick="navigateTo('/inbox')">
+                    <span class="sidebar-icon">📥</span>
+                    <span>Inbox</span>
                 </div>
                 <div class="sidebar-item" onclick="navigateTo('/analytics')">
                     <span class="sidebar-icon">📈</span>
@@ -879,7 +895,11 @@
                 </div>
             </div>
             <div class="sidebar-section">
-                <div class="sidebar-title">Settings</div>
+                <div class="sidebar-title">Account</div>
+                <div class="sidebar-item" onclick="navigateTo('/billing')">
+                    <span class="sidebar-icon">💳</span>
+                    <span>Billing</span>
+                </div>
                 <div class="sidebar-item" onclick="navigateTo('/settings')">
                     <span class="sidebar-icon">⚙️</span>
                     <span>Settings</span>
@@ -888,6 +908,12 @@
                     <span class="sidebar-icon">🚪</span>
                     <span>Logout</span>
                 </div>
+            </div>
+            <div class="sidebar-section" style="margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border);">
+                <a href="mailto:support@koldly.com" class="sidebar-item" style="font-size: 12px;">
+                    <span class="sidebar-icon">📧</span>
+                    <span>support@koldly.com</span>
+                </a>
             </div>
         </aside>
 
@@ -1097,7 +1123,9 @@
         }
 
         function switchTab(tabName) {
-            console.log('Switching to tab:', tabName);
+            // Route to appropriate page
+            var routes = { prospects: '/queue', sequences: '/campaigns', inbox: '/inbox', analytics: '/analytics' };
+            if (routes[tabName]) navigateTo(routes[tabName]);
         }
 
         // ============ API HELPERS ============
@@ -1145,14 +1173,14 @@
             if (!container) return;
 
             const cards = [
-                { label: 'Total Prospects', value: stats.total_prospects || 0, change: 'New prospects discovered' },
-                { label: 'Emails Sent', value: stats.emails_sent || 0, change: `${stats.emails_pending || 0} pending` },
-                { label: 'Open Rate', value: (stats.open_rate || 0) + '%', change: 'vs last week' },
-                { label: 'Reply Rate', value: (stats.reply_rate || 0) + '%', change: `${stats.replies_received || 0} replies` }
+                { label: 'Total Prospects', value: stats.total_prospects || 0, change: 'New prospects discovered', tooltip: 'Total number of prospects discovered across all active campaigns' },
+                { label: 'Emails Sent', value: stats.emails_sent || 0, change: `${stats.emails_pending || 0} pending`, tooltip: 'Total emails delivered to prospects. Pending = approved but not yet sent.' },
+                { label: 'Open Rate', value: (stats.open_rate || 0) + '%', change: 'vs last week', tooltip: 'Percentage of sent emails that were opened by recipients' },
+                { label: 'Reply Rate', value: (stats.reply_rate || 0) + '%', change: `${stats.replies_received || 0} replies`, tooltip: 'Percentage of sent emails that received a reply from the prospect' }
             ];
 
             container.innerHTML = cards.map(card => `
-                <div class="stat-card" style="animation: fadeIn 0.5s ease forwards;">
+                <div class="stat-card" style="animation: fadeIn 0.5s ease forwards;" title="${card.tooltip}">
                     <div class="stat-label">${card.label}</div>
                     <div class="stat-value">${card.value}</div>
                     <div class="stat-change">${card.change}</div>
