@@ -13,6 +13,8 @@ const OAuthService = require('./lib/oauth-service');
 const CampaignSendingService = require('./lib/campaign-sending-service');
 const ProofService = require('./lib/proof-service');
 const ProspectDiscoveryService = require('./lib/prospect-discovery-service');
+const DeliverabilityService = require('./lib/deliverability-service');
+const PushService = require('./lib/push-service');
 const EmailGenerationService = require('./lib/email-generation-service');
 const ApprovalService = require('./lib/approval-service');
 const ReplyResponseService = require('./lib/reply-response-service');
@@ -171,6 +173,99 @@ app.post('/api/webhooks/inbound', express.json({ limit: '10mb' }), async (req, r
   } catch (err) {
     console.error('[Inbound Webhook] Error:', err.message);
     res.status(500).json({ error: 'Failed to process inbound email' });
+  }
+});
+
+// ============================================
+// COLD ESP BOUNCE/COMPLAINT WEBHOOKS (Mailgun / SES)
+// Processes delivery events: bounces, complaints, opens, clicks
+// ============================================
+app.post('/api/webhooks/cold-esp', express.json({ limit: '2mb' }), async (req, res) => {
+  try {
+    const provider = process.env.COLD_ESP_PROVIDER || 'unknown';
+    const payload = req.body;
+    let event = null;
+
+    if (provider === 'mailgun') {
+      const eventData = payload['event-data'] || payload;
+      const eventType = eventData.event;
+      const recipientEmail = eventData.recipient;
+      const messageId = eventData.message?.headers?.['message-id'];
+
+      // Resolve generated_email_id from message ID
+      let generatedEmailId = null;
+      if (messageId) {
+        const match = await pool.query(
+          `SELECT ge.id FROM generated_emails ge
+           JOIN email_delivery_status eds ON eds.generated_email_id = ge.id
+           WHERE eds.external_message_id = $1 LIMIT 1`,
+          [messageId]
+        );
+        generatedEmailId = match.rows[0]?.id || null;
+      }
+
+      if (eventType === 'failed' || eventType === 'bounced') {
+        const severity = eventData.severity || 'temporary';
+        await deliverabilityService.processBounceEvent({
+          recipientEmail,
+          bounceType: severity === 'permanent' ? 'hard' : 'soft',
+          bounceReason: eventData['delivery-status']?.message || eventData.reason,
+          generatedEmailId,
+          rawPayload: eventData
+        });
+      } else if (eventType === 'complained') {
+        await deliverabilityService.processComplaintEvent({ recipientEmail, generatedEmailId, rawPayload: eventData });
+      } else if (eventType === 'opened' && generatedEmailId) {
+        await deliverabilityService.recordOpen(generatedEmailId);
+      } else if (eventType === 'clicked' && generatedEmailId) {
+        await deliverabilityService.recordClick(generatedEmailId);
+      }
+
+    } else if (provider === 'ses') {
+      // SES SNS notification
+      const message = typeof payload.Message === 'string' ? JSON.parse(payload.Message) : payload;
+      const notifType = message.notificationType;
+      const bounce = message.bounce;
+      const complaint = message.complaint;
+      const mail = message.mail || {};
+      const messageId = mail.messageId;
+
+      let generatedEmailId = null;
+      if (messageId) {
+        const match = await pool.query(
+          `SELECT ge.id FROM generated_emails ge
+           JOIN email_delivery_status eds ON eds.external_message_id = $1
+           WHERE eds.generated_email_id = ge.id LIMIT 1`,
+          [messageId]
+        );
+        generatedEmailId = match.rows[0]?.id || null;
+      }
+
+      if (notifType === 'Bounce' && bounce) {
+        for (const recipient of (bounce.bouncedRecipients || [])) {
+          await deliverabilityService.processBounceEvent({
+            recipientEmail: recipient.emailAddress,
+            bounceType: bounce.bounceType === 'Permanent' ? 'hard' : 'soft',
+            bounceReason: recipient.diagnosticCode || bounce.bounceSubType,
+            generatedEmailId,
+            rawPayload: bounce
+          });
+        }
+      } else if (notifType === 'Complaint' && complaint) {
+        for (const recipient of (complaint.complainedRecipients || [])) {
+          await deliverabilityService.processComplaintEvent({
+            recipientEmail: recipient.emailAddress,
+            generatedEmailId,
+            rawPayload: complaint
+          });
+        }
+      }
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    console.error('[Cold ESP Webhook] Error:', err.message);
+    res.status(500).json({ error: 'Failed to process ESP event' });
   }
 });
 
@@ -351,6 +446,8 @@ const marketingService = new MarketingService(pool);
 const onboardingServiceAuto = new OnboardingService(pool);
 const webhookService = new WebhookService();
 const slackService = new SlackService();
+const deliverabilityService = new DeliverabilityService(pool);
+const pushService = new PushService(pool);
 
 // Register inbox routes
 registerInboxRoutes(app, pool, authService);
@@ -1086,6 +1183,289 @@ app.get('/api/billing/usage', async (req, res) => {
 
 // Stripe webhook (raw body required — must be before json middleware)
 // Note: This route uses express.raw() for signature verification
+
+// ============================================
+// DEVICE REGISTRATION (iOS / Push Notifications)
+// ============================================
+
+// Register a device token for push notifications
+app.post('/api/devices/register', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { token, platform = 'ios', app_version, device_model } = req.body;
+    if (!token || typeof token !== 'string' || token.length < 10) {
+      return res.status(400).json({ error: 'Valid device token required' });
+    }
+
+    await pushService.registerDevice(user.id, token, platform, app_version, device_model);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Devices] Registration error:', err.message);
+    res.status(500).json({ error: 'Failed to register device' });
+  }
+});
+
+// Deregister a device token (called when user logs out from iOS app)
+app.post('/api/devices/unregister', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'token required' });
+
+    await pushService.deactivateDevice(user.id, token);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Devices] Deregistration error:', err.message);
+    res.status(500).json({ error: 'Failed to deregister device' });
+  }
+});
+
+// ============================================
+// WORKSPACE / TEAM ROUTES (Protected)
+// ============================================
+
+// Get current user's workspace
+app.get('/api/workspace', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await pool.query(
+      `SELECT w.*, wm.role as my_role
+       FROM workspaces w
+       JOIN workspace_members wm ON wm.workspace_id = w.id AND wm.user_id = $1
+       LIMIT 1`,
+      [user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No workspace found' });
+    }
+
+    // Get members
+    const members = await pool.query(
+      `SELECT wm.id, wm.role, wm.accepted_at, u.email, u.name, u.avatar_url
+       FROM workspace_members wm
+       JOIN users u ON u.id = wm.user_id
+       WHERE wm.workspace_id = $1 AND wm.accepted_at IS NOT NULL
+       ORDER BY wm.created_at ASC`,
+      [result.rows[0].id]
+    );
+
+    res.json({
+      success: true,
+      workspace: result.rows[0],
+      members: members.rows
+    });
+  } catch (err) {
+    console.error('[Workspace] Get error:', err.message);
+    res.status(500).json({ error: 'Failed to get workspace' });
+  }
+});
+
+// Invite a team member
+app.post('/api/workspace/invite', [
+  body('email').isEmail(),
+  body('role').optional().isIn(['admin', 'member', 'viewer'])
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
+
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { email, role = 'member' } = req.body;
+
+    // Get workspace
+    const wsResult = await pool.query(
+      `SELECT w.* FROM workspaces w
+       JOIN workspace_members wm ON wm.workspace_id = w.id
+       WHERE wm.user_id = $1 AND wm.role IN ('owner', 'admin')
+       LIMIT 1`,
+      [user.id]
+    );
+
+    if (wsResult.rows.length === 0) {
+      return res.status(403).json({ error: 'You must be an owner or admin to invite members' });
+    }
+
+    const workspace = wsResult.rows[0];
+
+    // Check member limit based on plan
+    const memberCountResult = await pool.query(
+      `SELECT COUNT(*) as count FROM workspace_members WHERE workspace_id = $1 AND accepted_at IS NOT NULL`,
+      [workspace.id]
+    );
+    const memberCount = parseInt(memberCountResult.rows[0].count);
+    const memberLimit = workspace.plan === 'scale' ? 999 : workspace.plan === 'growth' ? 3 : 1;
+
+    if (memberCount >= memberLimit) {
+      return res.status(403).json({
+        error: `Member limit reached (${memberLimit} on ${workspace.plan} plan). Upgrade to add more members.`
+      });
+    }
+
+    // Create invitation
+    const token = require('crypto').randomBytes(32).toString('hex');
+    await pool.query(
+      `INSERT INTO workspace_invitations (workspace_id, invited_by, email, role, token, expires_at)
+       VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '7 days')
+       ON CONFLICT DO NOTHING`,
+      [workspace.id, user.id, email.toLowerCase(), role, token]
+    );
+
+    // Send invitation email
+    const inviteUrl = `${process.env.APP_URL}/invite?token=${token}`;
+    await emailService.sendEmail({
+      to: email,
+      subject: `${user.name || user.email} invited you to join Koldly`,
+      html: `
+        <p>You've been invited to join <strong>${workspace.name}</strong> on Koldly.</p>
+        <p><a href="${inviteUrl}" style="background:#2563eb;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">Accept Invitation</a></p>
+        <p style="color:#666;font-size:12px;">This invitation expires in 7 days.</p>
+      `
+    });
+
+    res.json({ success: true, message: `Invitation sent to ${email}` });
+  } catch (err) {
+    console.error('[Workspace] Invite error:', err.message);
+    res.status(500).json({ error: 'Failed to send invitation' });
+  }
+});
+
+// Accept a workspace invitation
+app.post('/api/workspace/accept-invite', [
+  body('token').isString().isLength({ min: 10 })
+], async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Please log in to accept this invitation.' });
+
+    const { token } = req.body;
+
+    const invResult = await pool.query(
+      `SELECT * FROM workspace_invitations
+       WHERE token = $1 AND status = 'pending' AND expires_at > NOW()`,
+      [token]
+    );
+
+    if (invResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invitation not found or expired' });
+    }
+
+    const invitation = invResult.rows[0];
+
+    // Add to workspace
+    await pool.query(
+      `INSERT INTO workspace_members (workspace_id, user_id, role, invited_by, accepted_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (workspace_id, user_id) DO UPDATE SET accepted_at = NOW(), role = $3`,
+      [invitation.workspace_id, user.id, invitation.role, invitation.invited_by]
+    );
+
+    // Mark invitation as accepted
+    await pool.query(
+      `UPDATE workspace_invitations SET status = 'accepted', accepted_at = NOW() WHERE id = $1`,
+      [invitation.id]
+    );
+
+    res.json({ success: true, message: 'You have joined the workspace' });
+  } catch (err) {
+    console.error('[Workspace] Accept invite error:', err.message);
+    res.status(500).json({ error: 'Failed to accept invitation' });
+  }
+});
+
+// ============================================
+// DELIVERABILITY ROUTES (Protected)
+// ============================================
+
+// Get deliverability stats for a campaign
+app.get('/api/campaigns/:campaignId/deliverability', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const campaignId = parseInt(req.params.campaignId);
+    const ownerCheck = await pool.query(
+      'SELECT id FROM campaigns WHERE id = $1 AND user_id = $2',
+      [campaignId, user.id]
+    );
+    if (ownerCheck.rows.length === 0) return res.status(404).json({ error: 'Campaign not found' });
+
+    const stats = await deliverabilityService.getCampaignDeliverabilityStats(campaignId);
+    const capacity = await deliverabilityService.getRemainingDailyCapacity(campaignId);
+
+    res.json({ success: true, stats, remaining_sends_today: capacity });
+  } catch (err) {
+    console.error('[Deliverability] Stats error:', err.message);
+    res.status(500).json({ error: 'Failed to get deliverability stats' });
+  }
+});
+
+// ============================================
+// AI ADVISOR INSIGHTS (Protected)
+// ============================================
+
+// Get unread advisor insights for the current user
+app.get('/api/advisor/insights', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await pool.query(
+      `SELECT * FROM advisor_insights
+       WHERE user_id = $1 AND dismissed_at IS NULL AND expires_at > NOW()
+       ORDER BY priority = 'high' DESC, created_at DESC
+       LIMIT 20`,
+      [user.id]
+    );
+
+    res.json({ success: true, insights: result.rows });
+  } catch (err) {
+    console.error('[Advisor] Insights error:', err.message);
+    res.status(500).json({ error: 'Failed to get insights' });
+  }
+});
+
+// Mark an insight as read
+app.post('/api/advisor/insights/:id/read', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    await pool.query(
+      `UPDATE advisor_insights SET read_at = NOW() WHERE id = $1 AND user_id = $2`,
+      [parseInt(req.params.id), user.id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to mark insight as read' });
+  }
+});
+
+// Dismiss an insight
+app.post('/api/advisor/insights/:id/dismiss', async (req, res) => {
+  try {
+    const user = await authenticateRequest(req, authService);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    await pool.query(
+      `UPDATE advisor_insights SET dismissed_at = NOW() WHERE id = $1 AND user_id = $2`,
+      [parseInt(req.params.id), user.id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to dismiss insight' });
+  }
+});
 
 // ============================================
 // CAMPAIGN SENDING ROUTES (Protected)
