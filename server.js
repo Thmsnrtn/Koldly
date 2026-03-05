@@ -3287,6 +3287,568 @@ app.post('/api/experiment/:experimentId/convert', async (req, res) => {
 });
 
 // ============================================
+// TIER 2: LINKEDIN OUTREACH ROUTES
+// ============================================
+
+app.get('/api/linkedin/tasks', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const { campaign_id, status = 'pending_approval', limit = 20 } = req.query;
+
+    let query = `
+      SELECT lt.*, p.company_name, p.contact_first_name, p.contact_last_name
+      FROM linkedin_tasks lt
+      JOIN campaigns c ON lt.campaign_id = c.id
+      JOIN prospects p ON lt.prospect_id = p.id
+      WHERE c.user_id = $1`;
+    const params = [user.id];
+
+    if (campaign_id) { query += ` AND lt.campaign_id = $${params.length + 1}`; params.push(parseInt(campaign_id)); }
+    if (status) { query += ` AND lt.status = $${params.length + 1}`; params.push(status); }
+    query += ` ORDER BY lt.created_at DESC LIMIT $${params.length + 1}`;
+    params.push(parseInt(limit));
+
+    const result = await pool.query(query, params);
+    res.json({ tasks: result.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/linkedin/campaigns/:campaignId/generate', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const campaignId = parseInt(req.params.campaignId);
+    const { batch_size = 10 } = req.body;
+
+    const campaign = await pool.query(
+      `SELECT id FROM campaigns WHERE id = $1 AND user_id = $2`,
+      [campaignId, user.id]
+    );
+    if (!campaign.rows.length) return res.status(404).json({ error: 'Campaign not found' });
+
+    const LinkedInService = require('./lib/linkedin-service');
+    const AIService = require('./lib/ai-service');
+    const aiService = new AIService(pool);
+    const linkedinService = new LinkedInService(pool);
+    const result = await linkedinService.generateCampaignLinkedInTasks(campaignId, user.id, aiService, batch_size);
+    res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/linkedin/tasks/:taskId/approve', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const taskId = parseInt(req.params.taskId);
+
+    // Verify ownership
+    const check = await pool.query(
+      `SELECT lt.id FROM linkedin_tasks lt
+       JOIN campaigns c ON lt.campaign_id = c.id
+       WHERE lt.id = $1 AND c.user_id = $2`,
+      [taskId, user.id]
+    );
+    if (!check.rows.length) return res.status(404).json({ error: 'Task not found' });
+
+    const LinkedInService = require('./lib/linkedin-service');
+    const linkedinService = new LinkedInService(pool);
+    const result = await linkedinService.approveTask(taskId, user.id);
+    res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/linkedin/tasks/:taskId/reject', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const taskId = parseInt(req.params.taskId);
+
+    await pool.query(
+      `UPDATE linkedin_tasks SET status = 'rejected', updated_at = NOW()
+       WHERE id = $1 AND campaign_id IN (SELECT id FROM campaigns WHERE user_id = $2)`,
+      [taskId, user.id]
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================
+// TIER 2: CRM INTEGRATION ROUTES
+// ============================================
+
+app.get('/api/crm/status', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await pool.query(
+      `SELECT provider, connected_at, portal_id, hub_domain
+       FROM crm_integrations WHERE user_id = $1`,
+      [user.id]
+    );
+    res.json({ integrations: result.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/crm/connect/:provider', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const { provider } = req.params;
+
+    if (provider === 'hubspot') {
+      const clientId = process.env.HUBSPOT_CLIENT_ID;
+      const redirectUri = encodeURIComponent(`${process.env.APP_URL}/api/crm/callback/hubspot`);
+      const scope = encodeURIComponent('crm.objects.contacts.write crm.objects.deals.write oauth');
+      const state = Buffer.from(JSON.stringify({ userId: user.id })).toString('base64url');
+      const url = `https://app.hubspot.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}`;
+      res.json({ authUrl: url });
+    } else if (provider === 'salesforce') {
+      const clientId = process.env.SALESFORCE_CLIENT_ID;
+      const redirectUri = encodeURIComponent(`${process.env.APP_URL}/api/crm/callback/salesforce`);
+      const state = Buffer.from(JSON.stringify({ userId: user.id })).toString('base64url');
+      const url = `https://login.salesforce.com/services/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}`;
+      res.json({ authUrl: url });
+    } else {
+      res.status(400).json({ error: 'Unsupported CRM provider' });
+    }
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/crm/callback/:provider', async (req, res) => {
+  try {
+    const { provider } = req.params;
+    const { code, state } = req.query;
+
+    let userId;
+    try {
+      userId = JSON.parse(Buffer.from(state, 'base64url').toString()).userId;
+    } catch {
+      return res.status(400).send('Invalid state parameter');
+    }
+
+    const CRMService = require('./lib/crm-service');
+    const crmService = new CRMService(pool);
+    await crmService.completeOAuth(userId, provider, code);
+
+    res.redirect(`${process.env.APP_URL}/integrations?crm_connected=${provider}`);
+  } catch (err) {
+    console.error('[CRM OAuth callback]', err.message);
+    res.redirect(`${process.env.APP_URL}/integrations?crm_error=${encodeURIComponent(err.message)}`);
+  }
+});
+
+app.delete('/api/crm/disconnect/:provider', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    await pool.query(
+      `DELETE FROM crm_integrations WHERE user_id = $1 AND provider = $2`,
+      [user.id, req.params.provider]
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// CRM webhook (deal-won event updates prospect status)
+app.post('/api/webhooks/crm/:provider', express.json(), async (req, res) => {
+  try {
+    const { provider } = req.params;
+    // Match event to a user via portal_id or account identifier
+    const portalId = req.body.portalId || req.body.organizationId;
+    let userId = null;
+    if (portalId) {
+      const match = await pool.query(
+        `SELECT user_id FROM crm_integrations WHERE portal_id = $1 AND provider = $2 LIMIT 1`,
+        [String(portalId), provider]
+      );
+      userId = match.rows[0]?.user_id || null;
+    }
+    if (!userId) return res.json({ received: true }); // Unknown source — ignore
+
+    const CRMService = require('./lib/crm-service');
+    const crmService = new CRMService(pool);
+    await crmService.processWebhookEvent(provider, req.body, userId);
+    res.json({ received: true });
+  } catch (err) {
+    console.error('[CRM Webhook]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================
+// TIER 2: ATTRIBUTION & A/B ANALYTICS ROUTES
+// ============================================
+
+app.get('/api/attribution/summary', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const { days = 30 } = req.query;
+
+    const AttributionService = require('./lib/attribution-service');
+    const attribution = new AttributionService(pool);
+    const summary = await attribution.getUserAttributionSummary(user.id, parseInt(days));
+    res.json(summary);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/campaigns/:id/attribution', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const campaignId = parseInt(req.params.id);
+
+    const AttributionService = require('./lib/attribution-service');
+    const attribution = new AttributionService(pool);
+    const data = await attribution.getCampaignAttribution(campaignId, user.id);
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/experiments/:experimentId/stats', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const { metric = 'reply_rate' } = req.query;
+
+    const AttributionService = require('./lib/attribution-service');
+    const attribution = new AttributionService(pool);
+    const stats = await attribution.analyzeExperiment(parseInt(req.params.experimentId), metric);
+    res.json(stats);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================
+// TIER 2: WARMUP STATUS ROUTE
+// ============================================
+
+app.get('/api/campaigns/:id/warmup', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const campaignId = parseInt(req.params.id);
+
+    const campaign = await pool.query(
+      `SELECT c.*, u.sender_email FROM campaigns c JOIN users u ON c.user_id = u.id
+       WHERE c.id = $1 AND c.user_id = $2`,
+      [campaignId, user.id]
+    );
+    if (!campaign.rows.length) return res.status(404).json({ error: 'Campaign not found' });
+
+    const WarmupService = require('./lib/warmup-service');
+    const warmupService = new WarmupService(pool);
+    const status = await warmupService.getCampaignWarmupStatus(campaignId, campaign.rows[0].sender_email);
+    res.json(status);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/campaigns/:id/warmup/initialize', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const campaignId = parseInt(req.params.id);
+
+    const campaign = await pool.query(
+      `SELECT id FROM campaigns WHERE id = $1 AND user_id = $2`,
+      [campaignId, user.id]
+    );
+    if (!campaign.rows.length) return res.status(404).json({ error: 'Campaign not found' });
+
+    const WarmupService = require('./lib/warmup-service');
+    const warmupService = new WarmupService(pool);
+    const plan = await warmupService.initializeCampaignWarmup(campaignId, req.body.start_date || new Date());
+    res.json({ success: true, plan });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================
+// TIER 3: CAMPAIGN ARCHITECT AGENT ROUTES
+// ============================================
+
+app.post('/api/agent/campaigns/:id/architect', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const campaignId = parseInt(req.params.id);
+
+    const campaign = await pool.query(
+      `SELECT id FROM campaigns WHERE id = $1 AND user_id = $2`,
+      [campaignId, user.id]
+    );
+    if (!campaign.rows.length) return res.status(404).json({ error: 'Campaign not found' });
+
+    // Check if a workflow is already running
+    const existing = await pool.query(
+      `SELECT id, status FROM agent_workflows
+       WHERE campaign_id = $1 AND workflow_type = 'campaign_architect'
+         AND status NOT IN ('completed', 'failed')
+       LIMIT 1`,
+      [campaignId]
+    );
+    if (existing.rows.length) {
+      return res.json({ workflowId: existing.rows[0].id, status: existing.rows[0].status, resumed: true });
+    }
+
+    const AgentService = require('./lib/agent-service');
+    const AIService = require('./lib/ai-service');
+    const aiService = new AIService(pool);
+    const agentService = new AgentService(pool);
+    const workflowId = await agentService.startCampaignArchitect(campaignId, user.id, aiService);
+    res.json({ workflowId, status: 'running', message: 'Campaign Architect started. Check status at /api/agent/workflows/:id' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/agent/workflows/:workflowId', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await pool.query(
+      `SELECT aw.* FROM agent_workflows aw
+       JOIN campaigns c ON aw.campaign_id = c.id
+       WHERE aw.id = $1 AND c.user_id = $2`,
+      [parseInt(req.params.workflowId), user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Workflow not found' });
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/agent/workflows/:workflowId/approve', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const workflow = await pool.query(
+      `SELECT aw.* FROM agent_workflows aw
+       JOIN campaigns c ON aw.campaign_id = c.id
+       WHERE aw.id = $1 AND c.user_id = $2 AND aw.status = 'awaiting_human'`,
+      [parseInt(req.params.workflowId), user.id]
+    );
+    if (!workflow.rows.length) return res.status(404).json({ error: 'Workflow not found or not awaiting approval' });
+
+    const AgentService = require('./lib/agent-service');
+    const AIService = require('./lib/ai-service');
+    const aiService = new AIService(pool);
+    const agentService = new AgentService(pool);
+
+    // Resume optimizer phase
+    const result = await agentService.runOptimizer(
+      parseInt(req.params.workflowId),
+      user.id,
+      aiService,
+      req.body.performance_data || {}
+    );
+    res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/agent/workflows', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await pool.query(
+      `SELECT aw.id, aw.campaign_id, aw.workflow_type, aw.status, aw.current_node,
+              aw.created_at, aw.updated_at, c.name as campaign_name
+       FROM agent_workflows aw
+       JOIN campaigns c ON aw.campaign_id = c.id
+       WHERE c.user_id = $1
+       ORDER BY aw.created_at DESC
+       LIMIT 20`,
+      [user.id]
+    );
+    res.json({ workflows: result.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================
+// TIER 3: VIDEO OUTREACH ROUTES
+// ============================================
+
+app.post('/api/videos/prospects/:prospectId', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const prospectId = parseInt(req.params.prospectId);
+
+    const prospect = await pool.query(
+      `SELECT p.* FROM prospects p
+       JOIN campaigns c ON p.campaign_id = c.id
+       WHERE p.id = $1 AND c.user_id = $2`,
+      [prospectId, user.id]
+    );
+    if (!prospect.rows.length) return res.status(404).json({ error: 'Prospect not found' });
+
+    const VideoService = require('./lib/video-service');
+    const AIService = require('./lib/ai-service');
+    const aiService = new AIService(pool);
+    const videoService = new VideoService(pool);
+    const task = await videoService.createProspectVideo(prospectId, user.id, aiService);
+    res.json(task);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/videos/:taskId', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await pool.query(
+      `SELECT vt.* FROM video_tasks vt
+       JOIN prospects p ON vt.prospect_id = p.id
+       JOIN campaigns c ON p.campaign_id = c.id
+       WHERE vt.id = $1 AND c.user_id = $2`,
+      [parseInt(req.params.taskId), user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Video task not found' });
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Public video landing page (no auth — shared with prospects)
+app.get('/v/:taskId', async (req, res) => {
+  try {
+    const VideoService = require('./lib/video-service');
+    const videoService = new VideoService(pool);
+    const data = await videoService.getLandingPageData(parseInt(req.params.taskId));
+    if (!data) return res.status(404).send('Video not found');
+
+    // Serve a minimal HTML landing page with the video + calendar booking
+    const calendlyUrl = process.env.CALENDLY_DEFAULT_URL || '';
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A personal message for you — Koldly</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+           background: #0a0a0a; color: #fff; min-height: 100vh;
+           display: flex; flex-direction: column; align-items: center;
+           justify-content: center; padding: 24px; }
+    .card { background: #1a1a1a; border-radius: 16px; padding: 32px;
+            max-width: 640px; width: 100%; text-align: center; }
+    video { width: 100%; border-radius: 12px; margin: 24px 0; }
+    h1 { font-size: 22px; color: #FF6B35; margin-bottom: 8px; }
+    p { color: #aaa; font-size: 15px; margin-bottom: 24px; }
+    .cta { display: inline-block; padding: 14px 28px;
+           background: #FF6B35; color: white; text-decoration: none;
+           border-radius: 8px; font-weight: 600; font-size: 16px; }
+    .powered { color: #555; font-size: 12px; margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>A personal message for you</h1>
+    <p>From ${data.senderName || 'the Koldly team'}</p>
+    ${data.streamUrl
+      ? `<video controls autoplay muted playsinline src="${data.streamUrl}"></video>`
+      : '<p style="color:#666;padding:40px 0">Video is still rendering — check back soon.</p>'
+    }
+    ${calendlyUrl ? `<a class="cta" href="${calendlyUrl}" target="_blank">Book a 15-min call →</a>` : ''}
+    <p class="powered">Powered by Koldly AI Outreach</p>
+  </div>
+</body>
+</html>`;
+    res.type('html').send(html);
+  } catch (err) {
+    res.status(500).send('Error loading video');
+  }
+});
+
+// ============================================
+// TIER 3: INTELLIGENCE NETWORK ROUTES
+// ============================================
+
+app.get('/api/intelligence/status', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await pool.query(
+      `SELECT opted_in, opted_in_at FROM intelligence_opt_ins WHERE user_id = $1`,
+      [user.id]
+    );
+    res.json(result.rows[0] || { opted_in: false });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/intelligence/opt-in', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const { opted_in } = req.body;
+
+    await pool.query(
+      `INSERT INTO intelligence_opt_ins (user_id, opted_in, opted_in_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (user_id) DO UPDATE SET opted_in = $2, opted_in_at = NOW()`,
+      [user.id, !!opted_in]
+    );
+    res.json({ success: true, opted_in: !!opted_in });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/intelligence/benchmarks', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    const { industry, company_size } = req.query;
+
+    // Only surface benchmarks to opted-in users
+    const optIn = await pool.query(
+      `SELECT opted_in FROM intelligence_opt_ins WHERE user_id = $1`,
+      [user.id]
+    );
+    if (!optIn.rows[0]?.opted_in) {
+      return res.status(403).json({
+        error: 'Opt in to the Intelligence Network to access benchmarks',
+        opt_in_required: true
+      });
+    }
+
+    let query = `
+      SELECT icp_industry, icp_company_size_bucket, icp_job_title_category,
+             email_angle, sequence_step, week_start,
+             sample_size, open_count, reply_count, interested_count,
+             ROUND(open_rate * 100, 1) as open_rate_pct,
+             ROUND(reply_rate * 100, 1) as reply_rate_pct,
+             ROUND(interested_rate * 100, 1) as interested_rate_pct
+      FROM benchmark_data
+      WHERE sample_size >= 10`;
+    const params = [];
+
+    if (industry) { query += ` AND icp_industry = $${params.length + 1}`; params.push(industry); }
+    if (company_size) { query += ` AND icp_company_size_bucket = $${params.length + 1}`; params.push(company_size); }
+    query += ' ORDER BY reply_rate_pct DESC LIMIT 50';
+
+    const result = await pool.query(query, params);
+    res.json({ benchmarks: result.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/intelligence/recommendations', async (req, res) => {
+  try {
+    const user = await authService.verifyToken(req.headers.authorization);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await pool.query(
+      `SELECT * FROM icp_similarity_recommendations
+       WHERE user_id = $1 AND expires_at > NOW()
+       ORDER BY similarity_score DESC
+       LIMIT 10`,
+      [user.id]
+    );
+    res.json({ recommendations: result.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================
 // GLOBAL ERROR HANDLER
 // ============================================
 
